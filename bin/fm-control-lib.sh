@@ -36,11 +36,11 @@
 #
 # `resume` is deliberately NOT a verb. It is not deterministic across the
 # verified adapters: codex and grok resume only from a session id printed at
-# exit, opencode resumes the most recent session for the cwd with --continue,
-# and claude, pi, pi-signed, and kimi have no verified pane-resume contract at
-# all. `relaunch` covers the same need deterministically for every adapter,
-# because the brief on disk - not a harness-private session - is the durable
-# instruction.
+# exit, opencode and agy resume with --continue (agy also accepts an explicit
+# --conversation <id>), and claude, pi, pi-signed, and kimi have no verified
+# pane-resume contract at all. `relaunch` covers the same need deterministically
+# for every adapter, because the brief on disk - not a harness-private session -
+# is the durable instruction.
 
 # The complete control-plane verb allowlist, one per line.
 fm_control_verbs() {
@@ -63,7 +63,7 @@ fm_control_verb_allowed() {  # <verb>
 # than guessed at, exactly as a spawn on it would be.
 fm_control_harness_supported() {  # <harness>
   case "${1-}" in
-    claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|muse) return 0 ;;
+    claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|muse|agy) return 0 ;;
   esac
   return 1
 }
@@ -87,6 +87,7 @@ fm_control_harness_family() {  # <recorded-harness>
     kimi*) printf 'kimi' ;;
     cursor*) printf 'cursor' ;;
     muse*) printf 'muse' ;;
+    agy*) printf 'agy' ;;
     *) return 1 ;;
   esac
 }
@@ -108,9 +109,19 @@ fm_control_harness_supports_kind() {  # <harness> <kind>
 
 # The key that cancels a running turn. Escape for every adapter except grok,
 # whose Esc only moves focus to the scrollback; grok cancels on Ctrl+C.
+#
+# agy accepts either a single Escape or a single Ctrl+C, both verified to stop a
+# foreground turn and leave a clean composer, so it takes the fleet default.
+# It carries one caveat this plane cannot fix with a key: agy auto-promotes a
+# long shell command to its own background-task tracker, and NEITHER key kills
+# that already-backgrounded child - the command runs to completion and agy
+# resumes reporting on it afterwards (verified live, agy 1.1.22). `interrupt`
+# therefore cancels agy's current turn, exactly as its name says, and a hard
+# stop of in-flight shell work still needs the pane or process tree killed,
+# which is `exit` or `relaunch`, not this key.
 fm_control_interrupt_key() {  # <harness>
   case "${1-}" in
-    claude|codex|opencode|pi|pi-signed|kimi|cursor|muse) printf 'Escape' ;;
+    claude|codex|opencode|pi|pi-signed|kimi|cursor|muse|agy) printf 'Escape' ;;
     grok) printf 'C-c' ;;
     *) return 1 ;;
   esac
@@ -121,7 +132,7 @@ fm_control_interrupt_key() {  # <harness>
 fm_control_interrupt_repeat() {  # <harness>
   case "${1-}" in
     opencode) printf '2' ;;
-    claude|codex|pi|pi-signed|grok|kimi|cursor|muse) printf '1' ;;
+    claude|codex|pi|pi-signed|grok|kimi|cursor|muse|agy) printf '1' ;;
     *) return 1 ;;
   esac
 }
@@ -139,7 +150,7 @@ fm_control_interrupt_repeat() {  # <harness>
 fm_control_interrupt_clear_key() {  # <harness>
   case "${1-}" in
     muse) printf 'C-u' ;;
-    claude|codex|opencode|pi|pi-signed|grok|kimi|cursor) ;;
+    claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|agy) ;;
     *) return 1 ;;
   esac
 }
@@ -151,7 +162,7 @@ fm_control_interrupt_ack_source() {  # <harness>
     # after an interrupt was measured as variable - sometimes seconds, sometimes
     # not within 20 - so a cancellation claim built on it would be unreliable.
     # Normal turn completion is prompt, which is what the busy fold depends on.
-    claude|codex|opencode|pi|pi-signed|grok|kimi|cursor) printf 'none' ;;
+    claude|codex|opencode|pi|pi-signed|grok|kimi|cursor|agy) printf 'none' ;;
     *) return 1 ;;
   esac
 }
@@ -159,7 +170,7 @@ fm_control_interrupt_ack_source() {  # <harness>
 # The command that exits the agent from its own composer.
 fm_control_exit_command() {  # <harness>
   case "${1-}" in
-    claude|opencode|grok|kimi|cursor|muse) printf '/exit' ;;
+    claude|opencode|grok|kimi|cursor|muse|agy) printf '/exit' ;;
     codex|pi|pi-signed) printf '/quit' ;;
     *) return 1 ;;
   esac
@@ -224,6 +235,15 @@ fm_control_harness_wiring_paths() {  # <harness> <worktree> <state-dir> <id>
       printf '%s\n' "$state/$id.muse-session-current"
       ;;
     cursor) printf '%s\n' "$state/$id.cursor-session" ;;
+    agy)
+      # agy installs no hook either: agy 1.1.22 exposes no lifecycle-hook
+      # surface at all, so its busy source is its own conversation database,
+      # bound to the pane by these two firstmate-owned artifacts. A relaunch
+      # ONTO agy rewrites them, and a relaunch AWAY from agy must retire them so
+      # no retired incarnation's conversation binding outlives the agent.
+      printf '%s\n' "$state/$id.agy-session"
+      printf '%s\n' "$state/$id.agy-log"
+      ;;
   esac
 }
 
