@@ -3,7 +3,7 @@ name: harness-adapters
 description: >-
   Agent-only reference for firstmate harness operations.
   Use before spawning or recovering a crewmate or secondmate, handling a trust dialog, sending a harness-specific skill invocation, interrupting or exiting an agent, resuming an exited agent, or verifying a new harness adapter.
-  Contains verified facts for claude, codex, opencode, pi, pi-signed, grok, kimi, cursor, and muse.
+  Contains verified facts for claude, codex, opencode, pi, pi-signed, grok, kimi, cursor, muse, and agy.
 user-invocable: false
 metadata:
   internal: true
@@ -133,6 +133,7 @@ The supported launch-profile flags below are verified locally; each row records 
 | kimi | `--model <model>` | none | Verified 2026-07-25 on Kimi Code CLI 0.29.1. |
 | cursor | `--model <model>` | none | Verified 2026-08-11 on Cursor Agent CLI 2026.08.11-e8db854. No effort flag exists, so firstmate records the requested effort in task metadata and omits it from the launch. Validate ids against `cursor-agent --list-models` rather than assuming a low/medium/high family: the live catalog carries only `-high` Grok ids. |
 | muse | `--model <model>` | `--reasoning-effort <low\|medium\|high\|xhigh>`, and `ultra` only for an explicit `max` | Verified 2026-08-05 on Muse Code 0.1.0-R708.1. The flag accepts `none\|minimal\|low\|medium\|high\|xhigh\|ultra` and defaults to `high`. `ultra` is muse's max-class level, so it is reachable only through an explicit captain `max`, never from the generic fallback; `none` and `minimal` sit below the shared vocabulary and stay unreachable. |
+| agy | `--model <bare-base-name>` | `--effort <low\|medium\|high>` | Verified 2026-08-28 on Antigravity CLI 1.1.22. The ceiling is `high`; `xhigh` and `max` are rejected explicitly, so firstmate omits them. The model axis has a trap: the names `agy models` prints already bake effort into the id (`gemini-3.6-flash-medium`), and passing `--effort` alongside one is rejected as a conflict. Pass a BARE base name (`gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.1-pro`) plus a separate `--effort`, or omit `--model` entirely and let `--effort` apply to agy's configured default. `--effort` is unsupported outright on the `claude-*` and `gpt-oss-*` catalog entries, so firstmate omits it for those. |
 
 The concrete `harness` field owns adapter identity independently of the model provider: `harness=pi` with `model=xai/grok-*` is Pi using xAI, not `harness=grok`, and does not require Grok CLI login; `harness=grok` remains the standalone Grok Build CLI adapter.
 Likewise, `harness=cursor` with `model=cursor-grok-4.5-*` is Cursor Agent CLI routing a Grok model, not the xAI Grok Build `grok` harness.
@@ -152,6 +153,7 @@ Use the discovery surface in the current authenticated environment because suppo
 | grok | Run `grok models`, which lists the models available to the current Grok installation and account. |
 | kimi | Run `kimi provider list --json`, which lists the current provider and model configuration. |
 | cursor | Run `cursor-agent --list-models` (or the legacy `agent --list-models`), which lists the ids available to the current Cursor account. `cursor` is not the CLI name. |
+| agy | Run `agy models`, which lists the ids available to the current Antigravity account. Read it as a DISPLAY catalog: its Gemini entries carry a baked-in effort suffix that must not be passed alongside `--effort` (see the profile-axes row above). |
 
 For an unfamiliar harness or model namespace, establish support and provider identity from that harness's authoritative CLI help, model listing, or current documentation rather than guessing from a name or prefix.
 A listing that reaches the account and does not contain the model is concrete evidence the model is unsupported: block that candidate and quote the result.
@@ -173,6 +175,9 @@ Natural language is acceptable if uncertain.
 - grok: `/<skill>`, for example `/no-mistakes` (same form as claude). Verified end to end: grok discovers the user-level `no-mistakes` skill, `/no-mistakes` invokes it, and grok drives a real `no-mistakes axi run`. Like codex's `$`/`/` popups, typing `/<skill>` opens grok's slash-autocomplete, so a too-fast Enter selects the popup entry instead of sending, and for an argument-taking command (like `/no-mistakes`'s optional task-first argument) that first Enter only expands the popup selection into an argument-hint placeholder rather than submitting - a genuine second Enter is required (see the grok section below for the 2026-07-03 incident and fix). `fm_tmux_submit_core`'s retried Enter (used by `fm-send` on the tmux backend) handles this through the shared structural composer classifier; the herdr backend needed a dedicated fix (`fm_backend_herdr_composer_state`, docs/herdr-backend.md) because its prior delta-based verification false-positived on that same popup-close content change.
 - kimi: `/<skill>`, for example `/no-mistakes`.
 - cursor: `/<skill>`, for example `/no-mistakes`. Cursor discovers firstmate's user-level skills. Its slash popup swallows the first Enter, so a genuine second Enter submits; the shared submit retry handles it.
+- agy: do NOT send a slash command, and use natural language for any skill firstmate needs agy to run.
+  agy discovers this repo's own tracked `.agents/skills/` but NOT the captain's global `~/.claude/skills/`, so `/no-mistakes` matches nothing.
+  An unmatched `/token` is then intercepted client-side as `Unknown command` and never reaches the model at all, which is worse than grok's and cursor's popups because those still submit the text.
 
 ## Submission acknowledgement hazards
 
@@ -467,6 +472,67 @@ The delivery-only spinner match covers the full moon-phase glyph set rather than
 Each Kimi crew worktree receives a gitignored `.fm-kimi-turnend` token pointer, and the global hook touches that task's `state/<id>.turn-ended` only when the Stop payload's `cwd`, pointer, and registry entry all agree.
 A guarded silent hook cannot be verified from absence of effect, so prove invocation with an unguarded probe before concluding that the hook did not fire.
 The guarded turn-end signal remains a wake notification; standalone Kimi has no busy-state source until one is live-verified.
+
+## agy (VERIFIED CREWMATE/SCOUT 2026-08-28, Antigravity CLI 1.1.22)
+
+Antigravity CLI is a CREWMATE and SCOUT adapter only.
+`bin/fm-spawn.sh` refuses `--secondmate` on agy, and agy has no supervision protocol under `docs/supervision-protocols/`, so a firstmate primary detected as agy falls back to the `unknown` protocol.
+The refusal rests on stronger evidence than muse's: agy 1.1.22 has no lifecycle-hook surface at all (`agy plugin`, `agy mcp`, and `agy agents` were each checked), so there is nothing a primary turn-end supervision cycle could be armed on.
+
+| Fact | Value |
+|---|---|
+| Binary | Executable `agy` resolved from `PATH`; spawning refuses if it does not exist. |
+| Launch | Interactive TUI with the brief delivered through `-i/--prompt-interactive`; agy accepts no positional prompt. |
+| Models | `agy models` lists the account's catalog. Pass bare base names plus a separate `--effort`; see the launch-profile axes above for the suffix conflict. |
+| Busy state | Its own per-conversation SQLite step table, bound by the per-task `--log-file`. A pull source with no writer, like muse's session log and cursor's transcript. |
+| Exit command | `/exit` |
+| Interrupt | Single Escape or single Ctrl+C; the composer is left clean and needs no follow-up clear key. |
+| Skill invocation | None usable. An unmatched slash command is intercepted client-side and never reaches the model; use natural language. |
+| Autonomy | `--dangerously-skip-permissions`, which suppresses BOTH edit and shell-command approvals. `--mode accept-edits` covers edits only and stalls on every new shell command. |
+| Trust dialog | Exact-path workspace trust that NO flag suppresses; firstmate pre-writes the grant. See below. |
+| Slash submission | The popup swallows the first Enter, and an unmatched command is dropped entirely rather than submitted as text. |
+| Environment marker | `ANTIGRAVITY_AGENT=1` on child/tool processes; ancestry matches the exact process name `agy`. |
+| Composer | The `separated` shape: content between two dim-gray horizontal rules, with a bright-blue `>` prompt glyph and no idle ghost or placeholder text. |
+| Effort | `--effort <low\|medium\|high>`, conditional on the model; see the launch-profile axes above. |
+
+### Trust is exact-path and must be pre-established on every worktree
+
+agy gates a workspace behind a trust dialog whose matching is EXACT, not by prefix: launching in a fresh subdirectory of an already-trusted parent still raises it.
+Every new task worktree therefore hits it, every time, and no CLI flag suppresses it - `--dangerously-skip-permissions` covers tool approvals only and leaves this dialog untouched.
+`bin/fm-spawn.sh` handles it by writing the exact worktree path into the `trustedWorkspaces` array of `~/.gemini/antigravity-cli/settings.json` BEFORE the pane is created, because agy reads that array at startup.
+
+That file is the captain's own live settings, shared with their interactive use, so the write only ever appends, never reorders or removes an entry, refuses outright rather than rewriting a file that is not valid JSON, and replaces atomically under a firstmate-owned lock.
+The path is stored verbatim rather than canonicalized: agy normalizes redundant separators but does NOT resolve symlinks, and the grant and the pane's working directory both come from the same recorded worktree, so canonicalizing one side would break a symlinked worktree.
+
+### Busy state is the conversation database, not the screen
+
+agy persists one SQLite database per conversation under `~/.gemini/antigravity-cli/conversations/<id>.db`, whose `steps` table carries a `status` that is 3 exactly when that step has finished.
+The busy predicate is "ANY row is not status 3", never "the highest-idx row is not status 3".
+Those are not equivalent: a step that finishes AFTER the enclosing step that owns a running shell command leaves a settled row at the highest idx while the turn is still in flight, so the last-row form reads a FALSE IDLE mid-turn.
+`bin/fm-busy-lib.sh` owns the fold and the two read-only open modes it needs.
+
+The binding is by LOG FILE.
+`fm-spawn` gives each task its own `--log-file`, removes any predecessor's copy first, and agy writes a `Created conversation <id>` line into it.
+Do not bind by grepping the database blobs for the worktree path: that path appears only because agy happens to mention its cwd in first-turn reasoning, which nothing guarantees.
+Pre-assigning the id does not work either - `--conversation <unknown-id>` warns `not found` and mints a fresh id anyway, and a pre-set `ANTIGRAVITY_CONVERSATION_ID` in the launch environment is ignored.
+
+agy's rendered `esc to cancel` footer is a DELIVERY guard only and could not be a state source: agy auto-promotes a long shell command to its own background-task tracker and restores the idle footer while that turn is still running.
+
+### Interrupt does not kill a backgrounded shell command
+
+Escape and Ctrl+C both cancel agy's current model turn on a single press.
+Neither kills a shell command agy has already promoted to its background-task tracker: the command runs to completion and agy resumes reporting on it afterwards.
+A hard stop of in-flight shell work needs the pane or process tree killed, which is `exit` or `relaunch`, not the interrupt key.
+
+### Resume and eager reading
+
+`--continue`/`-c` and `--conversation <id>` both genuinely restore prior conversation state.
+`relaunch` remains the deterministic path for every adapter, because the brief on disk is the durable instruction.
+
+agy treats project instructions as live orders: on its first turn, unprompted, it read this repo's `AGENTS.md` and ran `bin/fm-session-start.sh` on its own initiative.
+A crewmate brief for an agy worker in a firstmate checkout should say plainly that the worker is a crewmate and must not run primary-session commands.
+
+Refresh every fact above with `FM_AGY_SIGNALS_LIVE=1 tests/fm-agy-signals-live-e2e.test.sh` after an agy upgrade.
 
 ## muse (VERIFIED 2026-08-05, Muse Code 0.1.0-R708.1, build sha 427a430436)
 
