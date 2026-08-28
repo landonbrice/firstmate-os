@@ -486,7 +486,7 @@ The refusal rests on stronger evidence than muse's: agy 1.1.22 has no lifecycle-
 | Models | `agy models` lists the account's catalog. Pass bare base names plus a separate `--effort`; see the launch-profile axes above for the suffix conflict. |
 | Busy state | Its own per-conversation SQLite step table, bound by the per-task `--log-file`. A pull source with no writer, like muse's session log and cursor's transcript. |
 | Exit command | `/exit` |
-| Interrupt | Single Escape or single Ctrl+C; the composer is left clean and needs no follow-up clear key. |
+| Interrupt | Single Escape or single Ctrl+C; the composer is left clean and needs no follow-up clear key, and the cancelled step settles to the ordinary finished status. |
 | Skill invocation | None usable. An unmatched slash command is intercepted client-side and never reaches the model; use natural language. |
 | Autonomy | `--dangerously-skip-permissions`, which suppresses BOTH edit and shell-command approvals. `--mode accept-edits` covers edits only and stalls on every new shell command. |
 | Trust dialog | Exact-path workspace trust that NO flag suppresses; firstmate pre-writes the grant. See below. |
@@ -509,6 +509,7 @@ The path is stored verbatim rather than canonicalized: agy normalizes redundant 
 agy persists one SQLite database per conversation under `~/.gemini/antigravity-cli/conversations/<id>.db`, whose `steps` table carries a `status` that is 3 exactly when that step has finished.
 The busy predicate is "ANY row is not status 3", never "the highest-idx row is not status 3".
 Those are not equivalent: a step that finishes AFTER the enclosing step that owns a running shell command leaves a settled row at the highest idx while the turn is still in flight, so the last-row form reads a FALSE IDLE mid-turn.
+An interrupted step settles to 3 as well, so cancelling a turn leaves no permanent non-3 row that would pin the fold at busy; the only non-3 values observed are 2 and 8, both meaning a step is running.
 `bin/fm-busy-lib.sh` owns the fold and the two read-only open modes it needs.
 
 The binding is by LOG FILE.
