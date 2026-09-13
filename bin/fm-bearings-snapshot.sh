@@ -346,7 +346,7 @@ fi
 
 # --- secondmate host status -------------------------------------------------
 SECONDMATE_HOSTS='[]'
-if [ "$FM_BEARINGS_HOST_PROBES" = 1 ] && [ -z "${FM_TEST_LEDGER_CALL_LOG:-}" ]; then
+if [ "$FM_BEARINGS_HOST_PROBES" = 1 ]; then
   local_mates=$(printf '%s' "$SNAP" | jq -c '.secondmate_current.records // [] | .[] | select(.registered != false) | {id, host, home, remote, freshness: (.freshness.status // "unknown")}')
   if [ -n "$local_mates" ]; then
     host_tmp=$(mktemp -d "${TMPDIR:-/tmp}/fm-bearings-hosts.XXXXXX")

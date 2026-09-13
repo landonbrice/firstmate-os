@@ -245,10 +245,58 @@ EOF
   pass "bearings snapshot projects secondmate_hosts correctly"
 }
 
+# ----------------------------------------------------------------------------
+# Test 7: Bearings host probe stays inside FM_SNAPSHOT_BUDGET with slow fm-on
+# ----------------------------------------------------------------------------
+test_bearings_host_probe_stays_inside_snapshot_budget() {
+  local home="$TMP_ROOT/budget-home"
+  local rhome="$TMP_ROOT/budget-rhome"
+  mkdir -p "$home/data" "$home/state" "$rhome/state"
+
+  cat > "$home/data/secondmates.md" <<EOF
+- remote-slow - Remote slow worker (host: slow-box; root: /remote/root; home: $rhome; scope: test; projects: p1; added 2026-09-01)
+EOF
+
+  local fake_on="$TMP_ROOT/fake-on-slow.sh"
+  cat > "$fake_on" <<'SH'
+#!/usr/bin/env bash
+set -u
+id=$1
+cmd=$2
+shift 2
+if [ "$cmd" = "fm-remote-file.sh" ]; then
+  cat <<'JSON'
+{"schema":"fm-secondmate-home-summary.v1","hold_classifier_schema":"fm-captain-hold-buckets.v1","generated":"2026-09-01T22:00:00Z","generated_epoch":2000,"home":"/remote/home","valid":true,"state":"no_active_work","active_children":[],decisions_open":[],holds":[],queued":[],landed":[],endpoints":[],counts":{"active_children":0,"decisions_open":0,"holds":0,"queued":0,"landed":0,"endpoints":0},"omitted":[]}
+JSON
+  exit 0
+elif [ "$cmd" = "fm-host-report.sh" ]; then
+  sleep 30
+  exit 0
+fi
+exit 1
+SH
+  chmod +x "$fake_on"
+
+  local start_t elapsed snap rc
+  start_t=$(date +%s)
+  snap=$(FM_HOME="$home" FM_ON_OVERRIDE="$fake_on" FM_SNAPSHOT_BUDGET=1 "$ROOT/bin/fm-bearings-snapshot.sh" --json)
+  rc=$?
+  elapsed=$(( $(date +%s) - start_t ))
+
+  [ "$rc" -eq 0 ] || fail "bearings snapshot with slow stubbed host probe failed with exit $rc"
+  [ "$elapsed" -lt 4 ] || fail "bearings snapshot waited past FM_SNAPSHOT_BUDGET (${elapsed}s >= 4s)"
+  printf '%s' "$snap" | jq -e '.secondmate_hosts | length == 1 and .[0].id == "remote-slow"' >/dev/null \
+    || fail "bearings did not contain expected secondmate_hosts entry"
+
+  pass "host probe stays inside FM_SNAPSHOT_BUDGET when fm-on is slow"
+}
+
 test_happy_path
 test_unreachable_host
 test_missing_report_script
 test_local_mate
 test_argument_filtering
 test_bearings_secondmate_hosts
+test_bearings_host_probe_stays_inside_snapshot_budget
+
 
