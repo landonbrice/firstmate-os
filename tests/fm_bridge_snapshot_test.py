@@ -56,6 +56,15 @@ class BridgeSnapshotParserTest(unittest.TestCase):
     def test_no_mistakes_empty_current_branch_is_unmeasured(self):
         self.assertIsNone(MODULE.parse_no_mistakes_status("current_branch: fm/x\nruns_on_current_branch: 0\n"))
 
+    def test_claude_path_mangles_dots_and_slashes(self):
+        self.assertEqual(
+            MODULE.claude_dir_for_path("/tmp/.treehouse/work"),
+            Path.home() / ".claude" / "projects" / "-tmp--treehouse-work",
+        )
+
+    def test_macos_process_elapsed_time(self):
+        self.assertEqual(MODULE.elapsed_process_time("15-04:05:06"), 15 * 86400 + 4 * 3600 + 5 * 60 + 6)
+
 
 if __name__ == "__main__":
     unittest.main()

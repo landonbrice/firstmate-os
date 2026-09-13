@@ -294,7 +294,7 @@ def parse_no_mistakes_status(text: str | None) -> dict[str, Any] | None:
 
 
 def claude_dir_for_path(path: str) -> Path:
-    return Path.home() / ".claude" / "projects" / path.replace("/", "-")
+    return Path.home() / ".claude" / "projects" / path.replace("/", "-").replace(".", "-")
 
 
 def newest_files(pattern: str, cap: int = LOG_FILE_CAP) -> list[str]:
@@ -416,11 +416,42 @@ def process_cwd(pid: int) -> str | None:
     return None
 
 
+def is_agent_process(process: dict[str, Any]) -> bool:
+    command = process.get("command") or ""
+    comm = os.path.basename(str(process.get("comm") or ""))
+    return comm in {"claude", "codex", "opencode", "agy"} or bool(re.search(r"(^|/)(claude|codex|opencode|agy)(\s|$)", command))
+
+
+def elapsed_process_time(value: str) -> int | None:
+    text = value.strip()
+    if not text:
+        return None
+    days = 0
+    if "-" in text:
+        day_text, text = text.split("-", 1)
+        if not day_text.isdigit():
+            return None
+        days = int(day_text)
+    parts = text.split(":")
+    if not all(part.isdigit() for part in parts):
+        return None
+    numbers = [int(part) for part in parts]
+    if len(numbers) == 3:
+        hours, minutes, seconds = numbers
+    elif len(numbers) == 2:
+        hours, minutes, seconds = 0, numbers[0], numbers[1]
+    elif len(numbers) == 1:
+        hours, minutes, seconds = 0, 0, numbers[0]
+    else:
+        return None
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
 def list_processes() -> list[dict[str, Any]]:
     fixture = process_fixture()
     if fixture is not None:
         return fixture
-    out, record = run_source("ps", ["ps", "-axo", "pid=,etimes=,comm=,command="], timeout=1.5)
+    out, record = run_source("ps", ["ps", "-axo", "pid=,etime=,comm=,command="], timeout=1.5)
     if not record["ok"] or not out:
         return []
     rows = []
@@ -428,7 +459,11 @@ def list_processes() -> list[dict[str, Any]]:
         parts = line.strip().split(None, 3)
         if len(parts) < 4 or not parts[0].isdigit():
             continue
-        rows.append({"pid": int(parts[0]), "elapsed_seconds": int(parts[1]) if parts[1].isdigit() else None, "comm": parts[2], "command": parts[3], "cwd": process_cwd(int(parts[0]))})
+        process = {"pid": int(parts[0]), "elapsed_seconds": elapsed_process_time(parts[1]), "comm": parts[2], "command": parts[3]}
+        if not is_agent_process(process):
+            continue
+        process["cwd"] = process_cwd(process["pid"])
+        rows.append(process)
     return rows
 
 
@@ -447,8 +482,7 @@ def unrecorded_agents(known_paths: set[str]) -> list[dict[str, Any]]:
     records = []
     for proc in list_processes():
         command = proc.get("command") or ""
-        comm = os.path.basename(str(proc.get("comm") or ""))
-        if not (comm in {"claude", "codex", "opencode", "agy"} or re.search(r"(^|/)(claude|codex|opencode|agy)(\s|$)", command)):
+        if not is_agent_process(proc):
             continue
         cwd = proc.get("cwd")
         if under(cwd, known_paths) or under(cwd, {no_mistakes}):
@@ -476,7 +510,7 @@ def agent_from_task(task: dict[str, Any], fm_home: str) -> dict[str, Any]:
         "model": meta.get("model") or None,
         "effort": meta.get("effort") or None,
         "backend": task.get("backend") or meta.get("backend"),
-        "endpoint_alive": endpoint.get("status") == "alive" or endpoint.get("agent_alive") == "alive",
+        "endpoint_alive": True if endpoint.get("status") == "alive" or endpoint.get("agent_alive") == "alive" else (False if endpoint.get("status") in {"dead", "missing", "absent"} or endpoint.get("agent_alive") in {"dead", "missing"} else None),
         "current_state": current_state.get("state") if isinstance(current_state, dict) else None,
         "last_status": last_status_from_task(task),
         "started_at": started_at,
@@ -488,6 +522,7 @@ def agent_from_task(task: dict[str, Any], fm_home: str) -> dict[str, Any]:
         "validation": None,
         "sources": {"context": "not measured yet", "validation": "not measured yet"},
         "_home": home,
+        "_endpoint_target": endpoint.get("target"),
         "_fm_home": fm_home,
     }
 
@@ -520,6 +555,7 @@ def agents_from_secondmates(fleet: dict[str, Any] | None, fm_home: str) -> list[
             "validation": None,
             "sources": {"context": "secondmate session logs are not exposed by fleet snapshot", "validation": "secondmate has no local worktree in fleet snapshot"},
             "_home": record.get("home"),
+            "_endpoint_target": None,
             "_fm_home": fm_home,
         })
     return result
@@ -562,12 +598,37 @@ def measure_context(agent: dict[str, Any]) -> None:
         context, tokens, source = claude_context(candidates)
     elif harness == "codex":
         context, tokens, source = codex_context(candidates)
+    elif agent.get("kind") == "primary":
+        context, tokens, source = claude_context(candidates)
+        if context is not None:
+            agent["harness"] = "claude"
+        else:
+            context, tokens, source = codex_context(candidates)
+            if context is not None:
+                agent["harness"] = "codex"
     else:
         context = tokens = None
         source = "unsupported or unknown harness for session-log context"
     agent["context"] = context
     agent["tokens"] = tokens
     agent["sources"]["context"] = source
+
+
+def merge_secondmate_agents(agents: list[dict[str, Any]], secondmates: list[dict[str, Any]]) -> None:
+    by_id = {agent.get("id"): agent for agent in agents}
+    for secondmate in secondmates:
+        existing = by_id.get(secondmate.get("id"))
+        if existing is None:
+            agents.append(secondmate)
+            by_id[secondmate.get("id")] = secondmate
+            continue
+        for key in ("parent", "project", "harness", "model", "effort", "backend", "started_at", "worktree", "_home"):
+            if existing.get(key) in (None, "") and secondmate.get(key) not in (None, ""):
+                existing[key] = secondmate[key]
+        if existing.get("current_state") in (None, "unknown") and secondmate.get("current_state") is not None:
+            existing["current_state"] = secondmate["current_state"]
+        if existing.get("endpoint_alive") is None and secondmate.get("endpoint_alive") is not None:
+            existing["endpoint_alive"] = secondmate["endpoint_alive"]
 
 
 def upstream_status(line: str | None, ok: bool, skipped: bool) -> dict[str, Any]:
@@ -585,6 +646,27 @@ def upstream_status(line: str | None, ok: bool, skipped: bool) -> dict[str, Any]
 
 def clean_agent(agent: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in agent.items() if not k.startswith("_")}
+
+
+def measure_endpoint(agent: dict[str, Any], root: Path, fm_home: str) -> tuple[bool | None, dict[str, Any] | None]:
+    backend = agent.get("backend")
+    target = agent.get("_endpoint_target")
+    if not backend or not target:
+        return agent.get("endpoint_alive"), None
+    env = os.environ.copy()
+    env["FM_HOME"] = fm_home
+    env["FM_ROOT_OVERRIDE"] = str(root)
+    command = '. "$1/bin/fm-backend.sh"; fm_backend_agent_alive "$2" "$3"'
+    output, source = run_source(
+        f"endpoint:{agent.get('id')}",
+        ["bash", "-c", command, "fm-bridge-endpoint", str(root), str(backend), str(target)],
+        timeout=SOURCE_TIMEOUT,
+        env=env,
+    )
+    if not source["ok"]:
+        return None, source
+    state = (output or "").strip()
+    return (True if state == "alive" else False if state == "dead" else None), source
 
 
 def build_snapshot(no_network: bool) -> dict[str, Any]:
@@ -622,9 +704,13 @@ def build_snapshot(no_network: bool) -> dict[str, Any]:
             agent["sources"]["context"] = context_source["error"] or "session-log source failed"
 
     if isinstance(fleet, dict):
-        agents.extend(agents_from_secondmates(fleet, fm_home))
+        merge_secondmate_agents(agents, agents_from_secondmates(fleet, fm_home))
 
     for agent in agents:
+        endpoint_alive, endpoint_source = measure_endpoint(agent, root, fm_home)
+        agent["endpoint_alive"] = endpoint_alive
+        if endpoint_source is not None:
+            sources.append(endpoint_source)
         worktree = agent.get("worktree")
         if not worktree:
             agent["sources"]["validation"] = "no worktree recorded"

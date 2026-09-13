@@ -25,7 +25,7 @@ trap 'cleanup; exit 130' INT
 trap 'cleanup; exit 143' TERM
 
 mkdir -p "$HOME_DIR/state" "$HOME_DIR/data" "$HOME_DIR/config" "$HOME_DIR/projects" "$WORKTREE" \
-  "$CLAUDE_HOME/.claude/projects/-tmp-claude-work" "$CLAUDE_HOME/.codex/sessions/2026/09/13"
+  "$CLAUDE_HOME/.claude/projects/-tmp--treehouse-claude-work" "$CLAUDE_HOME/.codex/sessions/2026/09/13"
 
 cat > "$FAKEBIN/fm-fleet-snapshot.sh" <<'SH'
 #!/usr/bin/env bash
@@ -50,7 +50,7 @@ cat <<'JSON'
       "paths":{
         "meta":{"path":"__HOME__/state/claude-task.meta","present":true},
         "status_log":{"last_event":{"state":"working","note":"building the thing","raw":"working: building the thing"}},
-        "worktree":{"path":"/tmp/claude-work","present":true},
+        "worktree":{"path":"/tmp/.treehouse/claude-work","present":true},
         "home":{"path":null,"present":false}
       },
       "current_state":{"state":"working"},
@@ -153,7 +153,7 @@ printf 'upstream: 3 new commits not in origin/main\n'
 SH
 chmod +x "$FAKEBIN/fm-upstream-sync.sh"
 
-cat > "$CLAUDE_HOME/.claude/projects/-tmp-claude-work/session.jsonl" <<'EOF'
+cat > "$CLAUDE_HOME/.claude/projects/-tmp--treehouse-claude-work/session.jsonl" <<'EOF'
 {"timestamp":"2026-09-13T00:00:02Z","message":{"role":"assistant","model":"claude-sonnet-4","usage":{"input_tokens":10,"cache_read_input_tokens":20,"cache_creation_input_tokens":30,"output_tokens":7}}}
 {"timestamp":"2026-09-13T00:00:03Z","message":{"role":"assistant","model":"claude-sonnet-4","usage":{"input_tokens":20,"cache_read_input_tokens":30,"cache_creation_input_tokens":40,"output_tokens":8}}}
 EOF
