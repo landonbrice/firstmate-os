@@ -166,9 +166,11 @@ EOF
 
 cat > "$PROCESS_FIXTURE" <<EOF
 [
-  {"pid":111,"elapsed_seconds":15,"comm":"codex","command":"codex gpt-5.6-terra","cwd":"$TMP_ROOT/outside"},
-  {"pid":112,"elapsed_seconds":16,"comm":"codex","command":"codex recorded","cwd":"$WORKTREE"},
-  {"pid":113,"elapsed_seconds":17,"comm":"claude","command":"claude nm","cwd":"$CLAUDE_HOME/.no-mistakes/run"}
+  {"pid":111,"ppid":1,"elapsed_seconds":15,"comm":"codex","command":"codex gpt-5.6-terra","cwd":"$TMP_ROOT/outside"},
+  {"pid":112,"ppid":1,"elapsed_seconds":16,"comm":"codex","command":"codex recorded","cwd":"$WORKTREE"},
+  {"pid":113,"ppid":1,"elapsed_seconds":17,"comm":"claude","command":"claude nm","cwd":"$CLAUDE_HOME/.no-mistakes/run"},
+  {"pid":114,"ppid":111,"elapsed_seconds":18,"comm":"codex","command":"codex native child","cwd":"$TMP_ROOT/outside"},
+  {"pid":115,"ppid":1,"elapsed_seconds":19,"comm":"bg-pty-host","command":"claude bg-pty-host --bg-pty-host","cwd":"$TMP_ROOT/outside"}
 ]
 EOF
 

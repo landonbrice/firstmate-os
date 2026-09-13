@@ -422,6 +422,11 @@ def is_agent_process(process: dict[str, Any]) -> bool:
     return comm in {"claude", "codex", "opencode", "agy"} or bool(re.search(r"(^|/)(claude|codex|opencode|agy)(\s|$)", command))
 
 
+def is_claude_host_helper(process: dict[str, Any]) -> bool:
+    command = process.get("command") or ""
+    return bool(re.search(r"\bclaude\s+(bg-pty-host|bg-spare|daemon\s+run)\b", command))
+
+
 def elapsed_process_time(value: str) -> int | None:
     text = value.strip()
     if not text:
@@ -451,16 +456,16 @@ def list_processes() -> list[dict[str, Any]]:
     fixture = process_fixture()
     if fixture is not None:
         return fixture
-    out, record = run_source("ps", ["ps", "-axo", "pid=,etime=,comm=,command="], timeout=1.5)
+    out, record = run_source("ps", ["ps", "-axo", "pid=,ppid=,etime=,comm=,command="], timeout=1.5)
     if not record["ok"] or not out:
         return []
     rows = []
     for line in out.splitlines():
-        parts = line.strip().split(None, 3)
-        if len(parts) < 4 or not parts[0].isdigit():
+        parts = line.strip().split(None, 4)
+        if len(parts) < 5 or not parts[0].isdigit() or not parts[1].isdigit():
             continue
-        process = {"pid": int(parts[0]), "elapsed_seconds": elapsed_process_time(parts[1]), "comm": parts[2], "command": parts[3]}
-        if not is_agent_process(process):
+        process = {"pid": int(parts[0]), "ppid": int(parts[1]), "elapsed_seconds": elapsed_process_time(parts[2]), "comm": parts[3], "command": parts[4]}
+        if not is_agent_process(process) or is_claude_host_helper(process):
             continue
         process["cwd"] = process_cwd(process["pid"])
         rows.append(process)
@@ -479,10 +484,14 @@ def under(path: str | None, roots: set[str]) -> bool:
 
 def unrecorded_agents(known_paths: set[str]) -> list[dict[str, Any]]:
     no_mistakes = os.path.realpath(str(Path.home() / ".no-mistakes"))
+    processes = list_processes()
+    listed_pids = {proc.get("pid") for proc in processes}
     records = []
-    for proc in list_processes():
+    for proc in processes:
         command = proc.get("command") or ""
         if not is_agent_process(proc):
+            continue
+        if is_claude_host_helper(proc) or proc.get("ppid") in listed_pids:
             continue
         cwd = proc.get("cwd")
         if under(cwd, known_paths) or under(cwd, {no_mistakes}):
