@@ -114,6 +114,8 @@ FM_BEARINGS_PR_REPOS=${FM_BEARINGS_PR_REPOS:-10}
 FM_BEARINGS_PR_LIMIT=${FM_BEARINGS_PR_LIMIT:-20}
 FM_BEARINGS_PR_TIMEOUT=${FM_BEARINGS_PR_TIMEOUT:-20}
 case "$FM_BEARINGS_PR_TIMEOUT" in ''|*[!0-9]*|0) FM_BEARINGS_PR_TIMEOUT=20 ;; esac
+FM_SNAPSHOT_BUDGET=${FM_SNAPSHOT_BUDGET:-5}
+case "$FM_SNAPSHOT_BUDGET" in ''|*[!0-9]*|0) FM_SNAPSHOT_BUDGET=5 ;; esac
 FM_BEARINGS_HOST_TIMEOUT=${FM_BEARINGS_HOST_TIMEOUT:-5}
 case "$FM_BEARINGS_HOST_TIMEOUT" in ''|*[!0-9]*|0) FM_BEARINGS_HOST_TIMEOUT=5 ;; esac
 FM_BEARINGS_HOST_PROBES=${FM_BEARINGS_HOST_PROBES:-1}
@@ -121,6 +123,7 @@ FM_ON_BIN="${FM_ON_OVERRIDE:-$SCRIPT_DIR/fm-on.sh}"
 validate_bound() {  # <name> <value>
   case "$2" in ''|*[!0-9]*|0) echo "fm-bearings-snapshot: $1 must be a positive integer" >&2; exit 2 ;; esac
 }
+validate_bound FM_SNAPSHOT_BUDGET "$FM_SNAPSHOT_BUDGET"
 validate_bound FM_BEARINGS_LANDED "$FM_BEARINGS_LANDED"
 validate_bound FM_BEARINGS_LANDED_PER_HOME "$FM_BEARINGS_LANDED_PER_HOME"
 validate_bound FM_BEARINGS_IN_FLIGHT "$FM_BEARINGS_IN_FLIGHT"
@@ -234,6 +237,7 @@ if [ "$GUARD_RC" -eq 4 ]; then
 fi
 
 NOW=${FM_BEARINGS_NOW:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}
+SNAP_COLLECT_START=$(date +%s)
 if [ "$ALL_LANDED" = 1 ] || [ "$ALL_SECONDMATES" = 1 ]; then
   if [ "$ALL_LANDED" = 1 ]; then
     SNAP=$(FM_SNAPSHOT_NOW="$NOW" FM_SNAPSHOT_SECONDMATES=0 FM_SNAPSHOT_SECONDMATE_LANDED_PER_HOME=0 "$FLEET" --json) || exit $?
@@ -243,6 +247,9 @@ if [ "$ALL_LANDED" = 1 ] || [ "$ALL_SECONDMATES" = 1 ]; then
 else
   SNAP=$(FM_SNAPSHOT_NOW="$NOW" "$FLEET" --json) || exit $?
 fi
+SNAP_COLLECT_END=$(date +%s)
+SNAP_COLLECT_ELAPSED=$(( SNAP_COLLECT_END - SNAP_COLLECT_START ))
+SNAP_COLLECT_REMAINING=$(( FM_SNAPSHOT_BUDGET - SNAP_COLLECT_ELAPSED ))
 HOME_LABEL=$(printf '%s' "$SNAP" | jq -er '.fm_home | strings | split("/") | (.[-2:] | join("/"))') \
   || { echo "fm-bearings-snapshot: invalid canonical snapshot" >&2; exit 1; }
 
@@ -340,7 +347,7 @@ fi
 # --- secondmate host status -------------------------------------------------
 SECONDMATE_HOSTS='[]'
 if [ "$FM_BEARINGS_HOST_PROBES" = 1 ] && [ -z "${FM_TEST_LEDGER_CALL_LOG:-}" ]; then
-  local_mates=$(printf '%s' "$SNAP" | jq -c '.secondmate_current.records // [] | .[] | select(.registered != false) | {id, host, home, remote}')
+  local_mates=$(printf '%s' "$SNAP" | jq -c '.secondmate_current.records // [] | .[] | select(.registered != false) | {id, host, home, remote, freshness: (.freshness.status // "unknown")}')
   if [ -n "$local_mates" ]; then
     host_tmp=$(mktemp -d "${TMPDIR:-/tmp}/fm-bearings-hosts.XXXXXX")
     pids=()
@@ -352,19 +359,39 @@ if [ "$FM_BEARINGS_HOST_PROBES" = 1 ] && [ -z "${FM_TEST_LEDGER_CALL_LOG:-}" ]; 
       m_host=$(printf '%s' "$m" | jq -r '.host // empty')
       m_home=$(printf '%s' "$m" | jq -r '.home // empty')
       m_remote=$(printf '%s' "$m" | jq -r '.remote // false')
+      m_freshness=$(printf '%s' "$m" | jq -r '.freshness // "unknown"')
       ids+=("$m_id")
       hosts+=("${m_host:-local}")
+
+      if [ "$SNAP_COLLECT_REMAINING" -le 0 ]; then
+        printf 'host view pending\n' > "$host_tmp/$m_id.res"
+        continue
+      fi
+
+      if [ "$m_remote" = "true" ] && [ "$m_freshness" != "fresh" ]; then
+        printf 'host view pending\n' > "$host_tmp/$m_id.res"
+        continue
+      fi
+
+      effective_timeout=$FM_BEARINGS_HOST_TIMEOUT
+      if [ "$effective_timeout" -gt "$SNAP_COLLECT_REMAINING" ]; then
+        effective_timeout=$SNAP_COLLECT_REMAINING
+      fi
+      if [ "$effective_timeout" -le 0 ]; then
+        effective_timeout=1
+      fi
+
       (
         out_f="$host_tmp/$m_id.out"
         err_f="$host_tmp/$m_id.err"
         if [ "$m_remote" = "true" ]; then
-          if fm_run_timed "$FM_BEARINGS_HOST_TIMEOUT" "$FM_ON_BIN" "$m_id" fm-host-report.sh --line > "$out_f" 2> "$err_f"; then
+          if fm_run_timed "$effective_timeout" "$FM_ON_BIN" "$m_id" fm-host-report.sh --line > "$out_f" 2> "$err_f"; then
             head -n 1 "$out_f" > "$host_tmp/$m_id.res"
           else
             rc=$?
             err_text=$(cat "$err_f" 2>/dev/null || true)
             if [ "$rc" -eq 124 ]; then
-              printf '%s: unreachable (timed out after %ss)\n' "$m_host" "$FM_BEARINGS_HOST_TIMEOUT" > "$host_tmp/$m_id.res"
+              printf '%s: unreachable (timed out after %ss)\n' "$m_host" "$effective_timeout" > "$host_tmp/$m_id.res"
             elif printf '%s\n' "$err_text" | grep -qE "not a genuine executable in the configured remote root: fm-host-report\.sh|not tracked by the configured remote root: fm-host-report\.sh|command not found: fm-host-report\.sh|fm-host-report\.sh: No such file"; then
               printf 'remote copy lacks fm-host-report.sh; update that host\n' > "$host_tmp/$m_id.res"
             elif [ "$rc" -eq 255 ]; then
@@ -374,7 +401,7 @@ if [ "$FM_BEARINGS_HOST_PROBES" = 1 ] && [ -z "${FM_TEST_LEDGER_CALL_LOG:-}" ]; 
             fi
           fi
         else
-          if fm_run_timed "$FM_BEARINGS_HOST_TIMEOUT" env FM_HOME="$m_home" "$SCRIPT_DIR/fm-host-report.sh" --line > "$out_f" 2> "$err_f"; then
+          if fm_run_timed "$effective_timeout" env FM_HOME="$m_home" "$SCRIPT_DIR/fm-host-report.sh" --line > "$out_f" 2> "$err_f"; then
             head -n 1 "$out_f" > "$host_tmp/$m_id.res"
           else
             rc=$?
@@ -386,9 +413,11 @@ if [ "$FM_BEARINGS_HOST_PROBES" = 1 ] && [ -z "${FM_TEST_LEDGER_CALL_LOG:-}" ]; 
     done <<EOF
 $local_mates
 EOF
-    for pid in "${pids[@]}"; do
-      wait "$pid" 2>/dev/null || true
-    done
+    if [ "${#pids[@]}" -gt 0 ]; then
+      for pid in "${pids[@]}"; do
+        wait "$pid" 2>/dev/null || true
+      done
+    fi
     SECONDMATE_HOSTS="["
     first=1
     for i in "${!ids[@]}"; do

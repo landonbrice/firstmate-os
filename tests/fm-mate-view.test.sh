@@ -223,8 +223,32 @@ EOF
   pass "argument filtering and unknown secondmate handling work"
 }
 
+# ----------------------------------------------------------------------------
+# Test 6: Bearings snapshot secondmate_hosts integration
+# ----------------------------------------------------------------------------
+test_bearings_secondmate_hosts() {
+  local home="$TMP_ROOT/bearings-home"
+  local local_mate="$TMP_ROOT/bearings-local-mate"
+  mkdir -p "$home/data" "$home/state" "$local_mate/data" "$local_mate/state"
+
+  cat > "$home/data/secondmates.md" <<EOF
+- local-worker - Local mate (home: $local_mate; scope: test; projects: p1; added 2026-09-01)
+EOF
+
+  local snap
+  snap=$(FM_HOME="$home" "$ROOT/bin/fm-bearings-snapshot.sh" --json)
+  local rc=$?
+  [ "$rc" -eq 0 ] || fail "bearings snapshot failed with exit $rc"
+  printf '%s' "$snap" | jq -e '.secondmate_hosts | length == 1 and .[0].id == "local-worker"' >/dev/null \
+    || fail "bearings did not contain expected secondmate_hosts entry"
+
+  pass "bearings snapshot projects secondmate_hosts correctly"
+}
+
 test_happy_path
 test_unreachable_host
 test_missing_report_script
 test_local_mate
 test_argument_filtering
+test_bearings_secondmate_hosts
+
