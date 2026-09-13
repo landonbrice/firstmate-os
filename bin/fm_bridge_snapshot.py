@@ -64,6 +64,19 @@ def elapsed_since(value: str | None) -> int | None:
     return max(0, int((dt.datetime.now(dt.timezone.utc) - started.astimezone(dt.timezone.utc)).total_seconds()))
 
 
+def started_at_from_meta(meta: dict[str, str], meta_path: str | None) -> str | None:
+    spawn_gen = meta.get("spawn_gen") or ""
+    match = re.match(r"^s(\d+)(?:\.|$)", spawn_gen)
+    if match:
+        return to_utc(int(match.group(1)))
+    if meta_path:
+        try:
+            return to_utc(Path(meta_path).stat().st_mtime)
+        except OSError:
+            pass
+    return None
+
+
 def elapsed_ms(start: float) -> int:
     return int(round((time.monotonic() - start) * 1000))
 
@@ -502,14 +515,15 @@ def unrecorded_agents(known_paths: set[str]) -> list[dict[str, Any]]:
 
 def agent_from_task(task: dict[str, Any], fm_home: str) -> dict[str, Any]:
     paths = task.get("paths") or {}
-    meta = meta_from_path(path_value((paths.get("meta") or {})))
+    meta_path = path_value((paths.get("meta") or {}))
+    meta = meta_from_path(meta_path)
     worktree = path_value(paths.get("worktree")) or meta.get("worktree")
     home = path_value(paths.get("home")) or meta.get("home")
     current_state = task.get("current_state") or {}
     endpoint = task.get("endpoint") or {}
     backlog = task.get("backlog") if isinstance(task.get("backlog"), dict) else {}
     pr = task.get("pr") if isinstance(task.get("pr"), dict) else {}
-    started_at = to_utc(meta.get("started_at") or meta.get("spawned_at") or backlog.get("since"))
+    started_at = started_at_from_meta(meta, meta_path)
     return {
         "id": task.get("id"),
         "kind": task.get("kind"),

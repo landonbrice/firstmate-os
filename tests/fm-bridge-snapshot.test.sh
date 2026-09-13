@@ -101,6 +101,7 @@ cat > "$HOME_DIR/state/codex-task.meta" <<EOF
 model=gpt-5.5
 effort=high
 worktree=$WORKTREE
+spawn_gen=s1700000000.123.1
 EOF
 
 cat > "$FAKEBIN/quota-axi" <<'SH'
@@ -197,6 +198,7 @@ jq -e --arg home "$HOME_DIR" '
   and (.agents[] | select(.id == "claude-task").tokens.output == 15)
   and (.agents[] | select(.id == "codex-task").context.current_tokens == 250)
   and (.agents[] | select(.id == "codex-task").context.percent == 25)
+  and (.agents[] | select(.id == "codex-task").started_at == "2023-11-14T22:13:20Z")
   and (.agents[] | select(.id == "codex-task").validation.current_step == "test")
   and (.agents[] | select(.id == "mate-one" and .kind == "secondmate" and .current_state == "working"))
   and (.unrecorded_agents | length) == 1

@@ -65,6 +65,12 @@ class BridgeSnapshotParserTest(unittest.TestCase):
     def test_macos_process_elapsed_time(self):
         self.assertEqual(MODULE.elapsed_process_time("15-04:05:06"), 15 * 86400 + 4 * 3600 + 5 * 60 + 6)
 
+    def test_started_at_uses_spawn_generation_not_date_only_backlog(self):
+        self.assertEqual(
+            MODULE.started_at_from_meta({"spawn_gen": "s1700000000.123.1"}, None),
+            "2023-11-14T22:13:20Z",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
