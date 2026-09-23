@@ -586,9 +586,11 @@ github_checks_not_green() {
 }
 
 # Read the required status checks configured for the pull request's base branch.
-# A protected branch with no required checks and an unprotected branch both
-# produce an empty set, while every other unreadable forge response refuses the
-# merge instead of assuming that no checks are required.
+# A protected branch with no required checks, an unprotected branch, and a
+# private repository on a plan without branch protection (HTTP 403 naming the
+# GitHub Pro or public-repository upgrade) all produce an empty set, while every
+# other unreadable forge response refuses the merge instead of assuming that no
+# checks are required.
 FM_PR_GITHUB_REQUIRED_CHECKS=
 github_read_required_checks() {
   local branch_path response status body checks
@@ -599,6 +601,15 @@ github_read_required_checks() {
     status=$(printf '%s\n' "$response" | awk '$1 ~ /^HTTP\/[0-9.]+$/ { code=$2 } END { print code }')
     if [ "$status" = 404 ]; then
       return 0
+    fi
+    if [ "$status" = 403 ]; then
+      body=$(printf '%s\n' "$response" | awk 'BEGIN { body=0 } body { print } /^[[:space:]]*$/ { body=1 }')
+      if printf '%s' "$body" | jq -e '
+          (.message | type == "string")
+          and (.message | contains("Upgrade to GitHub Pro or make this repository public"))' \
+        >/dev/null 2>&1; then
+        return 0
+      fi
     fi
     echo "error: could not read required checks for GitHub base branch $FM_PR_GITHUB_BASE" >&2
     return 1
