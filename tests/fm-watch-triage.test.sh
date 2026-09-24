@@ -21,6 +21,10 @@ set -u
 . "$(dirname "${BASH_SOURCE[0]}")/wake-helpers.sh"
 # shellcheck source=/dev/null
 . "$ROOT/bin/fm-classify-lib.sh"
+# fm_pr_poll_prepare/fm_pr_poll_publish_prepared arm a genuine merge poll for a
+# delivered worker, the same artifacts bin/fm-pr-check.sh publishes.
+# shellcheck source=/dev/null
+. "$ROOT/bin/fm-pr-lib.sh"
 
 WATCH="$ROOT/bin/fm-watch.sh"
 DRAIN="$ROOT/bin/fm-wake-drain.sh"
@@ -2030,6 +2034,142 @@ test_silent_idle_backstop_suppressed_by_declared_pause() {
   wait "$pid" 2>/dev/null || true
   assert_absent "$state/.silent-idle-surfaced-$key" "a declared pause should never let the silent-idle timer arm"
   pass "silent-idle backstop: a declared paused: line suppresses it exactly like the ordinary stale cadence"
+}
+
+# --- terminal stale for a DELIVERED ship worker ------------------------------
+#
+# The measured 2026-09-23 shape: a ship worker reported `done: PR <url>`, its PR
+# is open and under this watcher's own armed merge poll, and it cannot be torn
+# down because its worktree still holds the PR branch. It therefore sits idle at
+# its prompt for as long as the review takes, and every turn end redraws its
+# pane into a new hash. `done:` is captain-relevant, so each new hash re-entered
+# the terminal stale path and alarmed again: measured at one stale wake per turn
+# end, each costing a supervision turn that concludes the worker is still
+# finished.
+#
+# Drive real turn ends, acknowledging each wake exactly as a supervision turn
+# does, and count. The two cases differ in ONE condition - whether the task's
+# merge poll is armed - so the flood and the bound are the same worker read two
+# ways, and the unarmed case keeps this from passing vacuously.
+
+# One turn end: the pane redraws, the watcher runs until it surfaces something
+# or has completed two whole poll cycles on the new hash, then the handling turn
+# acknowledges whatever was queued. Echoes the number of stale wakes queued for
+# <window> by this turn end.
+drive_turn_end() {  # <dir> <state> <fakebin> <capture> <window> <content> [env...]
+  local dir=$1 state=$2 fakebin=$3 capture=$4 window=$5 content=$6
+  shift 6
+  local pid wakes
+  printf '%s\n' "$content" > "$capture"
+  PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture" \
+    FM_FAKE_TMUX_CURRENT_COMMAND=claude \
+    FM_STATE_OVERRIDE="$state" FM_CREW_STATE_BIN="$fakebin/fm-crew-state.sh" \
+    FM_PAUSE_RESURFACE_SECS=14400 FM_STALE_ESCALATE_SECS=240 \
+    FM_POLL=1 FM_SIGNAL_GRACE=1 FM_CHECK_INTERVAL=999999 FM_HEARTBEAT=999999 \
+    "$@" "$WATCH" >> "$dir/watch.out" 2>&1 &
+  pid=$!
+  if ! wait_for_exit "$pid" 60; then
+    wait_poll_cycle "$state" "$pid" 60 || true
+    reap "$pid"
+  fi
+  wakes=$(awk -F '\t' -v w="$window" '$3 == "stale" && $4 == w { n++ } END { print n + 0 }' \
+    "$state/.wake-queue" 2>/dev/null || echo 0)
+  ack_stopped_cycle "$state" >/dev/null 2>&1 || true
+  printf '%s' "$wakes"
+}
+
+# Build a delivered-and-idle ship worker. Echoes "<dir> <state> <fakebin>".
+make_delivered_worker() {  # <name> <window> <pr-url>
+  local name=$1 window=$2 url=$3 dir state fakebin statusf
+  dir=$(make_case "$name"); state="$dir/state"; fakebin="$dir/fakebin"
+  statusf="$state/ship.status"
+  printf 'window=%s\nkind=ship\nharness=claude\nbackend=tmux\npr=%s\n' "$window" "$url" \
+    > "$state/ship.meta"
+  printf 'working: opening the PR\ndone: PR %s\n' "$url" > "$statusf"
+  printf '%s' "$(seen_sig "$statusf")" > "$state/.seen-ship_status"
+  printf '%s\n' "$dir" "$state" "$fakebin"
+}
+
+test_delivered_pr_stale_flood_is_bounded_by_the_armed_merge_poll() {
+  local url window dir state fakebin key total round wakes
+  url="https://github.com/o/r/pull/12"
+  window="test:fm-ship"
+  key=$(printf '%s' "$window" | tr ':/.' '___')
+  export FM_FAKE_CREW_STATE='state: stopped · source: pane · idle at its prompt'
+
+  # The failure as measured: no merge poll armed, so nothing bounds the repeat.
+  # shellcheck disable=SC2046 # three fields, deliberately word-split
+  set -- $(make_delivered_worker delivered-unarmed "$window" "$url")
+  dir=$1; state=$2; fakebin=$3
+  total=0; round=1
+  while [ "$round" -le 3 ]; do
+    wakes=$(drive_turn_end "$dir" "$state" "$fakebin" "$dir/pane.txt" "$window" \
+      "idle at its prompt, turn $round")
+    total=$(( total + wakes ))
+    round=$((round + 1))
+  done
+  [ "$total" -ge 3 ] \
+    || fail "a delivered worker with no armed merge poll raised $total stale wakes across 3 turn ends, so the bounded case below proves nothing"
+
+  # The claim: the same worker, with its merge poll armed for that exact PR.
+  # shellcheck disable=SC2046 # three fields, deliberately word-split
+  set -- $(make_delivered_worker delivered-armed "$window" "$url")
+  dir=$1; state=$2; fakebin=$3
+  fm_pr_poll_prepare "$state" ship github "$url" github.com o/r 12 "$ROOT/bin/fm-pr-poll.sh" \
+    || fail "could not prepare the task's merge poll"
+  fm_pr_poll_publish_prepared || fail "could not publish the task's merge poll"
+  [ -e "$state/ship.pr-poll-registration" ] || fail "the merge poll left no registration record"
+
+  total=0; round=1
+  while [ "$round" -le 3 ]; do
+    wakes=$(drive_turn_end "$dir" "$state" "$fakebin" "$dir/pane.txt" "$window" \
+      "idle at its prompt, turn $round")
+    total=$(( total + wakes ))
+    round=$((round + 1))
+  done
+  [ "$total" -le 1 ] \
+    || fail "a delivery under an armed merge poll still raised $total stale wakes across 3 turn ends"
+  [ -e "$state/.paused-resurfaced-$key" ] \
+    || fail "the delivery bound did not record the shared re-surface throttle, so nothing re-checks it"
+  grep -F 'merge-watch:' "$state/.paused-resurfaced-$key" >/dev/null \
+    || fail "the throttle was not bound to this delivery's own scope: $(cat "$state/.paused-resurfaced-$key")"
+  unset FM_FAKE_CREW_STATE
+  pass "a delivered PR under an armed merge poll stops re-alarming on every turn end, and is still re-checked on the shared cadence"
+}
+
+# The same drive, for the two DECLARED waits. These were already bounded by the
+# re-surface throttle before the delivery bound existed; this pins that, so a
+# later change to the terminal path cannot quietly cost a parked worker its
+# cadence.
+test_declared_waits_are_not_realarmed_by_turn_ends() {
+  local spec name last crew window dir state fakebin statusf total round wakes
+  window="test:fm-parked"
+  for spec in \
+    'parked-paused|paused: waiting on the lavish review poll|state: paused · source: status-log · waiting on the lavish review poll' \
+    'parked-captain-held|captain-held [key=route]: tracked by task-route|state: stopped · source: pane · idle at its prompt'
+  do
+    name=${spec%%|*}
+    last=${spec#*|}; last=${last%%|*}
+    crew=${spec##*|}
+    dir=$(make_case "$name"); state="$dir/state"; fakebin="$dir/fakebin"
+    statusf="$state/parked.status"
+    printf 'window=%s\nkind=ship\nharness=claude\nbackend=tmux\n' "$window" > "$state/parked.meta"
+    printf '%s\n' "$last" > "$statusf"
+    printf '%s' "$(seen_sig "$statusf")" > "$state/.seen-parked_status"
+    export FM_FAKE_CREW_STATE="$crew"
+
+    total=0; round=1
+    while [ "$round" -le 3 ]; do
+      wakes=$(drive_turn_end "$dir" "$state" "$fakebin" "$dir/pane.txt" "$window" \
+        "idle, parked, turn $round")
+      total=$(( total + wakes ))
+      round=$((round + 1))
+    done
+    unset FM_FAKE_CREW_STATE
+    [ "$total" -le 1 ] \
+      || fail "$name: a declared wait raised $total stale wakes across 3 turn ends"
+  done
+  pass "a declared paused: or captain-held: wait is surfaced once and not re-alarmed by later turn ends"
 }
 
 # --- non-terminal stale, crew DECLARED a pause: absorbed, re-surfaced on a long
@@ -4925,6 +5065,8 @@ test_nonterminal_stale_not_working_surfaced
 test_silent_idle_backstop_surfaces_a_terminal_status_gap
 test_silent_idle_backstop_suppressed_by_declared_pause
 test_nonterminal_stale_paused_absorbed_then_resurfaced
+test_delivered_pr_stale_flood_is_bounded_by_the_armed_merge_poll
+test_declared_waits_are_not_realarmed_by_turn_ends
 test_exited_declared_pause_is_bounded_but_live_gate_surfaces
 test_absorbed_replacement_wait_does_not_inherit_the_old_throttle
 test_live_declared_wait_churn_honors_the_resurface_throttle

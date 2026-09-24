@@ -1315,6 +1315,40 @@ captain_call_stale_bound() {  # <window-key> <task>
   stale_wait_throttled "$key" "$STALE_WAIT_DECLARATION"
 }
 
+# The third record of work that is legitimately idle: a ship worker that already
+# DELIVERED. Its last line is `done: PR <url>`, its pane is idle at the prompt,
+# and its PR is under this watcher's own armed merge poll - which is what wakes
+# firstmate when the PR lands. The worker cannot be torn down while its worktree
+# holds the PR branch, so it sits finished for as long as the review takes, and
+# every turn end redraws its pane into a new hash that re-enters the terminal
+# stale path below. Measured 2026-09-23: one stale wake per turn end, for the
+# whole life of the PR, each one costing a supervision turn that concludes the
+# worker is still finished.
+#
+# Bounded, not silenced, and by the same cadence every other absorb here uses:
+# the first sight of a delivery still alarms, and the shared
+# .paused-resurfaced-<key> throttle holds the repeats for PAUSE_RESURFACE_SECS.
+# The bound is proved by fm_pr_poll_artifacts_valid (bin/fm-pr-lib.sh), the ONE
+# owner of "this task's merge poll is armed and valid for this exact PR", the
+# same predicate the check dispatcher itself requires before running that poll.
+# Anything it cannot prove - no poll, a poll for a different PR, tampered or
+# unreadable artifacts - alarms exactly as it does today.
+# Sets STALE_WAIT_DECLARATION only when the bound applies, so a caller that
+# already computed another scope keeps it.
+merge_watch_declaration() {  # <task> <pr-url>
+  printf 'merge-watch:%s:%s' "$2" "$(fm_wake_signal_sig "$STATE/$1.status" || true)"
+}
+
+merge_watch_stale_bound() {  # <window-key> <task>
+  local key=$1 task=$2 last
+  [ -n "$task" ] || return 1
+  last=$(last_status_line "$STATE/$task.status")
+  [ "$(status_line_verb "$last")" = "done" ] || return 1
+  fm_pr_poll_artifacts_valid "$STATE" "$task" "$SCRIPT_DIR/fm-pr-poll.sh" || return 1
+  STALE_WAIT_DECLARATION=$(merge_watch_declaration "$task" "$FM_PR_REG_URL")
+  stale_wait_throttled "$key" "$STALE_WAIT_DECLARATION"
+}
+
 # Surface a stale pane no classifier could resolve, so firstmate inspects it: it
 # may have finished through an interactive menu that wrote no status, be waiting on
 # a decision, or be wedged. pause_state_class deliberately answers `none` for a
@@ -2359,6 +2393,13 @@ EOF
               rm -f "$ssf"
               clear_write_tracking "$key"
               triage_log "absorbed stale (open captain call already surfaced for this status): $w"
+            elif merge_watch_stale_bound "$key" "$task"; then
+              # Same bound, for a delivery this watcher's own merge poll is
+              # already watching (merge_watch_stale_bound above).
+              printf '%s' "$h" > "$sf"
+              rm -f "$ssf"
+              clear_write_tracking "$key"
+              triage_log "absorbed stale (delivered PR already under an armed merge poll): $w"
             else
               fm_wake_append stale "$w" "stale: $w" || exit 1
               stale_wait_record "$key"
