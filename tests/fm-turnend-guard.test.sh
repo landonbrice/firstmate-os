@@ -86,6 +86,47 @@ test_predicate_queue_pending_flag() {
   pass "fm_supervision_status: FM_SUP_QUEUE_PENDING tracks state/.wake-queue"
 }
 
+# An idle home whose ONLY supervision reason is an undrained durable wake.
+# Measured 2026-09-23 on a secondmate home with no task metadata, no registered
+# check, no event source and no relay poll, holding one queued wake row: the
+# arm gate reported false, so its Stop auto-arm exited before the generation
+# claim on every turn and nothing carried the wake back to the model. The parent
+# then reported that mate's wake loop stalled.
+#
+# The alarm predicate deliberately does NOT count the queue: a handling turn
+# clears a queued wake by running, so counting it there would make every drain
+# in an otherwise idle home warn about the wake it is handling.
+test_predicate_queued_wake_arms_but_does_not_alarm() {
+  local state="$TMP_ROOT/pred-queued-wake/state"
+  mkdir -p "$state"
+
+  # Non-vacuity: with nothing at all, this home genuinely needs no watcher.
+  fm_supervision_arm_needed "$state" 300 && fail "an entirely idle home must not need a watcher cycle"
+
+  printf '1790200000\t744\tcheck\tsomekey\tcheck: a queued wake nothing else explains\n' \
+    > "$state/.wake-queue"
+  fm_supervision_arm_needed "$state" 300 \
+    || fail "an undrained durable wake did not call for a watcher cycle"
+  [ "$FM_SUP_QUEUE_PENDING" = true ] || fail "a queued wake must read as pending"
+  [ "$FM_SUP_IN_FLIGHT" -eq 0 ] || fail "a queued wake must not count as an in-flight task"
+  [ "$FM_SUP_CHECKS" -eq 0 ] || fail "a queued wake must not count as a registered check"
+  [ "$FM_SUP_SOURCES" -eq 0 ] || fail "a queued wake must not count as an event source"
+
+  # The alarm side stays quiet, so a drain in an idle home does not warn about
+  # the wake it is in the middle of handling.
+  fm_supervision_needed "$state" 300 \
+    && fail "a queued wake alone must not read as standing supervision need"
+  fm_supervision_unhealthy "$state" 300 \
+    && fail "a queued wake alone must not raise the supervision-is-off alarm"
+
+  # The need must clear the moment the handling turn drains it, or the home can
+  # never go quiet again.
+  : > "$state/.wake-queue"
+  fm_supervision_arm_needed "$state" 300 \
+    && fail "the arm need survived the wake being drained"
+  pass "fm_supervision_arm_needed: an undrained durable wake arms a cycle without raising the supervision-is-off alarm, and clears when drained"
+}
+
 test_predicate_x_mode_needs_supervision() {
   local state="$TMP_ROOT/pred-x-mode/state"
   mkdir -p "$state"
@@ -2204,6 +2245,7 @@ test_predicate_unhealthy_no_beacon
 test_predicate_unhealthy_stale_beacon
 test_predicate_healthy_fresh_beacon
 test_predicate_queue_pending_flag
+test_predicate_queued_wake_arms_but_does_not_alarm
 test_predicate_x_mode_needs_supervision
 test_predicate_source_needs_supervision
 test_predicate_registered_check_needs_supervision

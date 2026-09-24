@@ -646,6 +646,38 @@ test_arms_for_x_mode_poll_need_without_inflight() {
   pass "auto-arm: X-mode poll need arms the cycle even with no tasks in flight"
 }
 
+# The measured 2026-09-23 secondmate shape, end to end: a marked secondmate home
+# with no task metadata, no registered check, no event source and no relay poll,
+# holding one undrained durable wake. Its Stop auto-arm exited 0 at the
+# supervision-need gate on every turn, so the epoch ledger never advanced and
+# nothing carried the queued wake back to the model.
+test_arms_for_queued_wake_without_inflight() {
+  local dir out status epoch_before
+  dir=$(make_secondmate_dir "$TMP_ROOT/queued-wake-need")
+  write_arm_fixture "$dir" actionable
+
+  # Non-vacuity: with an empty queue this home is idle and must stay inert, so
+  # the armed case below cannot pass on the home's shape alone.
+  : > "$dir/state/.wake-queue"
+  out=$(run_autoarm "$dir" 2>/dev/null); status=$?
+  expect_code 0 "$status" "an empty wake queue must leave an idle secondmate home inert"
+  [ ! -e "$dir/state/arm-ran" ] || fail "hook armed a secondmate home with an empty wake queue"
+  [ ! -e "$dir/state/.claude-autoarm-epoch" ] \
+    || fail "an inert hook wrote an epoch for an empty queue"
+
+  printf '1790200000\t744\tcheck\tsomekey\tcheck: a queued wake nothing else explains\n' \
+    > "$dir/state/.wake-queue"
+  epoch_before=$(cat "$dir/state/.claude-autoarm-epoch" 2>/dev/null || true)
+  [ -z "$epoch_before" ] || fail "fixture started with an epoch already recorded"
+
+  out=$(run_autoarm "$dir" 2>/dev/null); status=$?
+  expect_code 2 "$status" "an undrained durable wake must keep the auto-arm active with zero tasks in flight"
+  [ -e "$dir/state/arm-ran" ] || fail "hook did not arm for the queued wake"
+  grep -q 'outcome=rewake' "$dir/state/.claude-autoarm-epoch" 2>/dev/null \
+    || fail "the generation claim never advanced for a queued wake: $(cat "$dir/state/.claude-autoarm-epoch" 2>/dev/null || echo '<no epoch>')"
+  pass "auto-arm: an undrained durable wake arms the cycle in an idle secondmate home"
+}
+
 test_arms_for_registered_custom_check_without_inflight() {
   local dir out status
   dir=$(make_primary_dir "$TMP_ROOT/check-need")
@@ -1250,6 +1282,7 @@ test_benign_cycle_end_with_live_watcher_is_silent
 test_positive_recovery_budget_contention_preserves_episode
 test_owner_mutex_contention_preserves_failure_episode_reset
 test_arms_for_x_mode_poll_need_without_inflight
+test_arms_for_queued_wake_without_inflight
 test_arms_for_registered_custom_check_without_inflight
 test_single_flight_admits_exactly_one_owner
 test_abandoned_owner_claim_is_reclaimed_and_rearms
