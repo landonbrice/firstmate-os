@@ -193,6 +193,10 @@ case "${1:-} ${2:-}" in
   api\ *)
     case "$*" in
       *'/branches/'*'/protection'*)
+        if [ -s "${FM_TEST_GH_REQUIRED_CHECKS_FAIL:-}" ]; then
+          cat "$FM_TEST_GH_REQUIRED_CHECKS_FAIL"
+          exit 1
+        fi
         if [ -f "${FM_TEST_GH_REQUIRED_CHECKS_FAIL:-}" ]; then
           printf '%s\n' 'HTTP/2.0 500 Internal Server Error' '' '{"message":"required checks unavailable"}'
           exit 1
@@ -2417,7 +2421,35 @@ test_github_required_checks_refuse_missing_allow_named_and_fail_closed() {
     "github-required-check-unreadable: unreadable required checks were not reported"
   assert_no_grep 'pr merge' "$case_dir/gh.log" \
     "github-required-check-unreadable: gh pr merge ran after an unreadable forge query"
-  pass "fm-pr-merge refuses absent required checks, supports one named waiver, preserves no-requirement behavior, and fails closed on unreadable rules"
+
+  case_dir=$(make_case github-required-check-plan-limit)
+  mkdir -p "$case_dir/wt"
+  add_gh_mocks "$case_dir" "$head"
+  printf '%s\n' 'HTTP/2.0 403 Forbidden' '' \
+    '{"message":"Upgrade to GitHub Pro or make this repository public to enable this feature."}' \
+    > "$case_dir/github-required-checks-fail"
+  run_pr_merge "$case_dir" task-x1 https://github.com/example/repo/pull/105 \
+    > "$case_dir/stdout" 2> "$case_dir/stderr" \
+    || fail "github-required-check-plan-limit: plan-limit 403 should merge as unprotected$(cat "$case_dir/stderr")"
+  assert_logged_gh_merge "$case_dir" 105 example/repo --squash
+
+  case_dir=$(make_case github-required-check-other-403)
+  mkdir -p "$case_dir/wt"
+  add_gh_mocks "$case_dir" "$head"
+  printf '%s\n' 'HTTP/2.0 403 Forbidden' '' \
+    '{"message":"Resource not accessible by personal access token"}' \
+    > "$case_dir/github-required-checks-fail"
+  set +e
+  run_pr_merge "$case_dir" task-x1 https://github.com/example/repo/pull/106 \
+    > "$case_dir/stdout" 2> "$case_dir/stderr"
+  rc=$?
+  set -e
+  expect_code 1 "$rc" "github-required-check-other-403: unrelated 403 must refuse"
+  assert_grep 'could not read required checks for GitHub base branch main' "$case_dir/stderr" \
+    "github-required-check-other-403: unrelated 403 was not reported"
+  assert_no_grep 'pr merge' "$case_dir/gh.log" \
+    "github-required-check-other-403: gh pr merge ran after an unrelated 403"
+  pass "fm-pr-merge refuses absent required checks, supports one named waiver, preserves no-requirement behavior, treats the plan-limit 403 as unprotected, and fails closed on unreadable rules"
 }
 
 # When the base branch advances, GitHub cancels a pull request's in-flight run
