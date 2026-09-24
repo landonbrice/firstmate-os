@@ -92,7 +92,7 @@ fm_supervision_status() {
     fi
   fi
 
-  # shellcheck disable=SC2034 # Read by callers (fm-guard.sh) after sourcing.
+  # Read by fm_supervision_arm_needed below, and by callers after sourcing.
   [ -s "$state/.wake-queue" ] && FM_SUP_QUEUE_PENDING=true
   return 0
 }
@@ -102,6 +102,30 @@ fm_supervision_status() {
 fm_supervision_needed() {
   fm_supervision_status "$@"
   [ "$FM_SUP_NEEDED" = true ]
+}
+
+# fm_supervision_arm_needed <state-dir> [grace-seconds]
+# Exit 0 (true) when a watcher cycle must be STARTED: everything
+# fm_supervision_needed counts, plus an undrained durable wake.
+#
+# The two questions differ, and only this one counts the queue. A queued wake is
+# the home's own unfinished business: it stays durable until a handling turn
+# acknowledges it, and the watcher is what carries it back to the model, so a
+# home holding one must still arm. It is NOT evidence that supervision has
+# lapsed, because the handling turn clears it by running - which is why
+# fm_supervision_unhealthy, the alarm behind the "supervision is off" banner,
+# deliberately keeps reading FM_SUP_NEEDED alone. Counting the queue there would
+# make every drain in an otherwise idle home warn about the wake it is in the
+# middle of handling.
+#
+# Without this, a home whose ONLY supervision reason was a queued wake reported
+# no need at all, so bin/fm-claude-stop-autoarm.sh exited at its need gate before
+# the generation claim and nothing ever presented that wake (observed 2026-09-23
+# on an idle secondmate home: its epoch ledger sat frozen across several
+# completed turns while the parent reported its wake loop stalled).
+fm_supervision_arm_needed() {
+  fm_supervision_status "$@"
+  [ "$FM_SUP_NEEDED" = true ] || [ "$FM_SUP_QUEUE_PENDING" = true ]
 }
 
 # fm_supervision_unhealthy <state-dir> [grace-seconds]
