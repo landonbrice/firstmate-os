@@ -314,7 +314,12 @@ class BridgeConsole(App[None]):
         if not quota:
             widget.update("quota: not measured")
             return
+        if quota.get("unavailable"):
+            widget.update("quota: unavailable")
+            return
         lines = [lib.format_quota_provider(p) for p in quota.get("providers", [])]
+        if quota.get("stale_since"):
+            lines.insert(0, f"quota: {lib.format_stale(quota['stale_since'])}")
         attention = quota.get("attention") or []
         if attention:
             lines.append(f"attention ({len(attention)}): " + "; ".join(f"{a['provider']} {a['kind']}" for a in attention))
@@ -323,6 +328,12 @@ class BridgeConsole(App[None]):
     def _render_fleet(self) -> None:
         table = self.query_one("#fleet-table", DataTable)
         table.clear()
+        fleet = (self.snapshot or {}).get("fleet") or {}
+        if fleet.get("unavailable"):
+            table.add_row("fleet unavailable", "-", "fleet source failed and no earlier result exists", "-", "-", "-", key="fleet-unavailable")
+            return
+        if fleet.get("stale_since"):
+            table.add_row("fleet " + lib.format_stale(fleet["stale_since"]), "-", "showing last good fleet", "-", "-", "-", key="fleet-stale")
         for agent in (self.snapshot or {}).get("agents", []):
             aid = agent.get("id", "?")
             status_note = (agent.get("last_status") or {}).get("note") or (agent.get("current_state") or "?")
@@ -338,8 +349,12 @@ class BridgeConsole(App[None]):
         if not backlog:
             widget.update("backlog: not measured")
             return
+        if backlog.get("unavailable"):
+            widget.update("backlog: unavailable")
+            return
+        stale = f" ({lib.format_stale(backlog['stale_since'])})" if backlog.get("stale_since") else ""
         widget.update(
-            "backlog: {in_flight} in flight, {held} held, {ready} ready, {blocked} blocked".format(
+            ("backlog: {in_flight} in flight, {held} held, {ready} ready, {blocked} blocked" + stale).format(
                 in_flight=backlog.get("in_flight", "?"),
                 held=backlog.get("held", "?"),
                 ready=backlog.get("ready", "?"),

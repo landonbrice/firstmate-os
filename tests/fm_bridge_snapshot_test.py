@@ -14,6 +14,59 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(MODULE)
 
 
+FLEET_JSON = json.dumps({"fm_home": "", "tasks": [], "backlog": {"records": [{"state": "queued"}]}})
+
+
+def _run_fleet(tmp, script, budget):
+    """Run build_snapshot against a fake fleet source; returns the snapshot."""
+    fake = Path(tmp) / "fleet.sh"
+    fake.write_text("#!/bin/sh\n" + script)
+    fake.chmod(0o755)
+    env = {
+        "FM_HOME": tmp,
+        "FM_BRIDGE_FLEET_SNAPSHOT_BIN": str(fake),
+        "FM_BRIDGE_PROCESS_FIXTURE": str(Path(tmp) / "proc.json"),
+    }
+    (Path(tmp) / "proc.json").write_text("[]")
+    old = {k: os.environ.get(k) for k in env}
+    os.environ.update(env)
+    old_budget = MODULE.FLEET_TIMEOUT
+    MODULE.FLEET_TIMEOUT = budget
+    try:
+        return MODULE.build_snapshot(True)
+    finally:
+        MODULE.FLEET_TIMEOUT = old_budget
+        for k, v in old.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+class BridgeSnapshotStaleTest(unittest.TestCase):
+    def test_slow_fleet_serves_cached_payload_with_stale_since(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            good = _run_fleet(tmp, f"echo '{FLEET_JSON}'\n", 5)
+            self.assertEqual(good["backlog"]["ready"], 1)
+            self.assertNotIn("stale_since", good["backlog"])
+            slow = _run_fleet(tmp, "sleep 3\n", 0.5)
+            self.assertEqual(slow["backlog"]["ready"], 1)
+            self.assertTrue(slow["backlog"]["stale_since"])
+            self.assertEqual(slow["fleet"]["stale_since"], slow["backlog"]["stale_since"])
+            fast = _run_fleet(tmp, f"echo '{FLEET_JSON}'\n", 5)
+            self.assertIsNone(fast["fleet"]["stale_since"])
+            self.assertNotIn("stale_since", fast["backlog"])
+
+    def test_slow_fleet_without_cache_is_unavailable_not_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            snap = _run_fleet(tmp, "sleep 3\n", 0.5)
+            self.assertEqual(snap["backlog"], {"unavailable": True})
+            self.assertTrue(snap["fleet"]["unavailable"])
+
+    def test_fleet_budget_default_is_eight_seconds(self):
+        self.assertEqual(MODULE.FLEET_TIMEOUT, 8.0)
+
+
 class BridgeSnapshotParserTest(unittest.TestCase):
     def test_codex_context_returns_null_reason_without_token_event(self):
         with tempfile.TemporaryDirectory() as tmp:
