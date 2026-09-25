@@ -117,8 +117,24 @@ Backend capability comes from each adapter's real surface, not from a policy cho
 Per-harness interrupt keys, repeat counts, composer clears, exit commands, and supported task kinds live in `bin/fm-control-lib.sh` and are exercised for every verified harness by `tests/fm-control.test.sh`, with adapters outside its lane pinning their control mechanics in their own harness suites.
 The empirical basis for each adapter's value is the `harness-adapters` skill's verification record for that adapter.
 
+## Context reset for a long-lived secondmate
+
+A secondmate's conversation replays its whole context on every call, so an unreset one gets steadily more expensive.
+`bin/fm-context-check.sh <id> [--threshold N]` prints one `context-high: <id> <tokens> > <threshold>` line when a Claude-harness task's current per-call context is over the threshold (default 200000) and nothing otherwise; it always exits 0.
+It checks `kind=secondmate` tasks by default, and a present `state/<id>.context-check` file opts any other Claude task in.
+To have the watcher run it on the slow poll, write `state/<id>.check.sh` as a mode-0700 file that execs the script by absolute path, for example `exec /path/to/firstmate/bin/fm-context-check.sh <id> --threshold 200000`, then bind it with `bin/fm-check-register.sh <id>`.
+
+On a `context-high` wake, firstmate performs the reset by hand:
+
+1. Confirm the secondmate is idle with `bin/fm-crew-state.sh <id>`, has no open pending reply, and has no child worker mid-gate; if any of these fails, leave it and recheck on the next wake.
+2. Send `/stow` through `bin/fm-send.sh` and wait for its completion status line.
+3. Run `bin/fm-control.sh <id> relaunch`.
+
+The stow-then-relaunch sequence is deliberately not automated.
+
 ## Verification
 
 - `tests/fm-control.test.sh` - the adapter contract for its verified-harness lane (adapters outside the lane pin their control mechanics in their own harness suites), the backend capability matrix, exact-id scoping, the closed verb list, the busy, idle, dead, and idempotent lifecycle cases, and marker non-regression, all against a stubbed session provider.
 - `tests/fm-control-relaunch.test.sh` - the relaunch transaction: identity preservation, harness switching, the progress note, checkpoint refusals, and rollback after a failed launch.
 - `tests/fm-control-herdr-smoke.test.sh` - the second state-verified backend against the real herdr binary, on an isolated throwaway lab session.
+- `tests/fm-context-check.test.sh` - the context-high check: threshold boundary, missing transcript, non-Claude harness, and the opt-in file.
