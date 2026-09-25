@@ -156,6 +156,19 @@ def format_age(generated: str | None, now: _dt.datetime | None = None) -> str:
     return f"{delta // 3600}h {(delta % 3600) // 60}m ago"
 
 
+def format_stale(stale_since: str | None) -> str:
+    """Render "stale since HH:MMZ" for a UTC ISO8601 timestamp."""
+    if not stale_since:
+        return "stale"
+    try:
+        then = _parse_iso8601(stale_since)
+    except ValueError:
+        return f"stale since {stale_since}"
+    if then.tzinfo is None:
+        then = then.replace(tzinfo=_dt.timezone.utc)
+    return "stale since " + then.astimezone(_dt.timezone.utc).strftime("%H:%MZ")
+
+
 def format_quota_provider(entry: dict[str, Any]) -> str:
     """One quota-strip line: provider, percent left, window, reset/run-out."""
     provider = entry.get("provider", "?")

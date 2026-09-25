@@ -22,6 +22,8 @@ from typing import Any
 
 SCHEMA = "fm-bridge-snapshot.v1"
 SOURCE_TIMEOUT = float(os.environ.get("FM_BRIDGE_SOURCE_TIMEOUT", "3"))
+FLEET_TIMEOUT = float(os.environ.get("FM_BRIDGE_FLEET_TIMEOUT", "8"))
+CACHE_NAME = ".bridge-snapshot-cache.json"
 LOG_FILE_CAP = int(os.environ.get("FM_BRIDGE_LOG_FILE_CAP", "80"))
 CLAUDE_WINDOWS = {
     "claude-sonnet-4": 200000,
@@ -145,6 +147,42 @@ def run_memory_source(name: str, func, timeout: float = SOURCE_TIMEOUT) -> tuple
     record["ok"] = True
     record["elapsed_ms"] = elapsed_ms(start)
     return value, record
+
+
+def cache_path(fm_home: str) -> Path:
+    return Path(fm_home) / "state" / CACHE_NAME
+
+
+def load_cache(fm_home: str) -> dict[str, Any]:
+    try:
+        data = json.loads(cache_path(fm_home).read_text())
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_cache(fm_home: str, cache: dict[str, Any]) -> None:
+    path = cache_path(fm_home)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=CACHE_NAME + ".")
+        with os.fdopen(fd, "w") as handle:
+            json.dump(cache, handle)
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def last_good(cache: dict[str, Any], name: str, payload: Any, ok: bool) -> tuple[Any, str | None]:
+    """Return (payload, stale_since). A good payload refreshes the cache; a failed
+    source serves the cached payload labelled stale, or (None, None) when none exists."""
+    if ok and payload is not None:
+        cache[name] = {"at": utc_now(), "payload": payload}
+        return payload, None
+    entry = cache.get(name)
+    if isinstance(entry, dict) and entry.get("payload") is not None:
+        return entry["payload"], entry.get("at")
+    return None, None
 
 
 def parse_json(text: str | None) -> Any | None:
@@ -703,14 +741,23 @@ def build_snapshot(no_network: bool) -> dict[str, Any]:
     fleet_env = os.environ.copy()
     with tempfile.TemporaryDirectory(prefix="fm-bridge-fleet-cache-") as fleet_cache:
         fleet_env["FM_SNAPSHOT_CACHE_DIR"] = fleet_cache
-        fleet_out, fleet_source = run_source("fm-fleet-snapshot", [fleet_bin, "--json"], timeout=SOURCE_TIMEOUT, env=fleet_env)
+        fleet_out, fleet_source = run_source("fm-fleet-snapshot", [fleet_bin, "--json"], timeout=FLEET_TIMEOUT, env=fleet_env)
     sources.append(fleet_source)
     fleet = parse_source_json(fleet_out, fleet_source, "fm-fleet-snapshot") if fleet_source["ok"] else None
+    fm_home_cache = fm_home
+    cache = load_cache(fm_home)
+    fleet, fleet_stale_since = last_good(cache, "fleet", fleet, fleet_source["ok"])
 
     quota_out, quota_source = run_source("quota-axi", ["quota-axi", "--json", "--no-credential-refresh"], timeout=SOURCE_TIMEOUT)
     sources.append(quota_source)
     quota_raw = parse_source_json(quota_out, quota_source, "quota-axi") if quota_source["ok"] else None
-    quota = quota_snapshot(quota_raw, quota_source["ok"], quota_source["error"])
+    quota_raw, quota_stale_since = last_good(cache, "quota", quota_raw, quota_source["ok"])
+    quota = quota_snapshot(quota_raw, True, quota_source["error"])
+    quota["ok"] = bool(quota_source["ok"] and quota_raw)
+    if quota_stale_since:
+        quota["stale_since"] = quota_stale_since
+    elif quota_raw is None:
+        quota["unavailable"] = True
 
     agents = [primary_agent(fm_home)]
     if isinstance(fleet, dict):
@@ -763,6 +810,10 @@ def build_snapshot(no_network: bool) -> dict[str, Any]:
         sources.append(upstream_source)
         upstream = upstream_status(upstream_out, upstream_source["ok"], False)
 
+    save_cache(fm_home_cache, cache)
+    backlog = backlog_counts(fleet) if fleet is not None else {"unavailable": True}
+    if fleet_stale_since:
+        backlog["stale_since"] = fleet_stale_since
     return {
         "schema": SCHEMA,
         "generated": generated,
@@ -771,7 +822,8 @@ def build_snapshot(no_network: bool) -> dict[str, Any]:
         "quota": quota,
         "agents": [clean_agent(agent) for agent in agents],
         "unrecorded_agents": unrecorded_value or [],
-        "backlog": backlog_counts(fleet),
+        "backlog": backlog,
+        "fleet": {"unavailable": fleet is None, "stale_since": fleet_stale_since},
         "upstream": upstream,
         "sources": sources,
     }
