@@ -2567,7 +2567,7 @@ test_delivered_pr_stale_flood_is_bounded_by_the_armed_merge_poll() {
   key=$(printf '%s' "$window" | tr ':/.' '___')
   export FM_FAKE_CREW_STATE='state: stopped · source: pane · idle at its prompt'
 
-  # The failure as measured: no merge poll armed, so nothing bounds the repeat.
+  # No merge poll armed: the first sight still alarms, exactly once.
   # shellcheck disable=SC2046 # three fields, deliberately word-split
   set -- $(make_delivered_worker delivered-unarmed "$window" "$url")
   dir=$1; state=$2; fakebin=$3
@@ -2578,8 +2578,8 @@ test_delivered_pr_stale_flood_is_bounded_by_the_armed_merge_poll() {
     total=$(( total + wakes ))
     round=$((round + 1))
   done
-  [ "$total" -ge 3 ] \
-    || fail "a delivered worker with no armed merge poll raised $total stale wakes across 3 turn ends, so the bounded case below proves nothing"
+  [ "$total" -eq 1 ] \
+    || fail "a delivered worker with no armed merge poll raised $total stale wakes across 3 turn ends, want exactly one (the cue to tear down or arm)"
 
   # The claim: the same worker, with its merge poll armed for that exact PR.
   # shellcheck disable=SC2046 # three fields, deliberately word-split
@@ -2605,6 +2605,128 @@ test_delivered_pr_stale_flood_is_bounded_by_the_armed_merge_poll() {
     || fail "the throttle was not bound to this delivery's own scope: $(cat "$state/.paused-resurfaced-$key")"
   unset FM_FAKE_CREW_STATE
   pass "a delivered PR under an armed merge poll stops re-alarming on every turn end, and is still re-checked on the shared cadence"
+}
+
+# Build a worker whose status log is the given lines (one per argument), with the
+# task's merge poll armed for <pr-url> only when <armed> is yes.
+make_replay_worker() {  # <name> <window> <pr-url> <armed yes|no> <status-line>...
+  local name=$1 window=$2 url=$3 armed=$4 dir state fakebin statusf
+  shift 4
+  dir=$(make_case "$name"); state="$dir/state"; fakebin="$dir/fakebin"
+  statusf="$state/ship.status"
+  printf 'window=%s\nkind=ship\nharness=claude\nbackend=tmux\npr=%s\n' "$window" "$url" \
+    > "$state/ship.meta"
+  printf '%s\n' "$@" > "$statusf"
+  printf '%s' "$(seen_sig "$statusf")" > "$state/.seen-ship_status"
+  if [ "$armed" = yes ]; then
+    fm_pr_poll_prepare "$state" ship github "$url" github.com o/r "${url##*/}" "$ROOT/bin/fm-pr-poll.sh" \
+      || fail "could not prepare the task's merge poll"
+    fm_pr_poll_publish_prepared || fail "could not publish the task's merge poll"
+  fi
+  printf '%s\n' "$dir" "$state" "$fakebin"
+}
+
+# Stale wakes raised across <n> turn ends of pane churn for a replay worker.
+replay_turn_ends() {  # <dir> <state> <fakebin> <window> <n>
+  local dir=$1 state=$2 fakebin=$3 window=$4 n=$5 total=0 round=1
+  while [ "$round" -le "$n" ]; do
+    total=$(( total + $(drive_turn_end "$dir" "$state" "$fakebin" "$dir/pane.txt" "$window" \
+      "idle at its prompt, turn $round") ))
+    round=$((round + 1))
+  done
+  printf '%s' "$total"
+}
+
+# Replays of the 2026-09-25/26 false alarms. The status lines are the real events
+# recorded in data/<id>/timeline.json for each task (the live state files were
+# torn down): fm-bridge-timeout ended on a `done: PR <url> (...)` line with no
+# merge poll armed, and fm-mate-context-reset went `working: PR <url> open, CI
+# pending` then `done: PR <url>` while its PR sat under review.
+test_terminal_last_line_alarms_once_then_stays_quiet() {
+  local window="test:fm-ship" key url17 url16 dir state fakebin total
+  key=$(printf '%s' "$window" | tr ':/.' '___')
+  url17="https://github.com/o/r/pull/17"
+  url16="https://github.com/o/r/pull/16"
+  export FM_FAKE_CREW_STATE='state: stopped · source: pane · idle at its prompt'
+
+  # fm-bridge-timeout: done with a PR URL, no poll armed - fires once.
+  # shellcheck disable=SC2046
+  set -- $(make_replay_worker replay-bridge "$window" "$url17" no \
+    "done [at=1790400000]: PR $url17 (fleet 8s budget + stale_since cache; local tests pass; fork shows no CI checks yet)")
+  dir=$1; state=$2; fakebin=$3
+  total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 4)
+  [ "$total" -eq 1 ] || fail "fm-bridge-timeout replay raised $total stale wakes across 4 turn ends, want exactly 1"
+
+  # fm-mate-context-reset: working+PR then done, poll armed - fires at most once.
+  # shellcheck disable=SC2046
+  set -- $(make_replay_worker replay-reset "$window" "$url16" yes \
+    "working [at=1790400000]: PR $url16 open, CI pending" \
+    "done [at=1790400100]: PR $url16")
+  dir=$1; state=$2; fakebin=$3
+  total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 4)
+  [ "$total" -le 1 ] || fail "fm-mate-context-reset replay raised $total stale wakes across 4 turn ends, want at most 1"
+
+  # done without a PR URL, and failed: the same once-only rule.
+  # shellcheck disable=SC2046
+  set -- $(make_replay_worker replay-nopr "$window" "$url17" no "done [at=1790400000]: refactor finished")
+  dir=$1; state=$2; fakebin=$3
+  total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 3)
+  [ "$total" -eq 1 ] || fail "a done line without a PR raised $total stale wakes, want exactly 1"
+  # shellcheck disable=SC2046
+  set -- $(make_replay_worker replay-failed "$window" "$url17" no "failed [at=1790400000]: build broke")
+  dir=$1; state=$2; fakebin=$3
+  total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 3)
+  [ "$total" -eq 1 ] || fail "a failed line raised $total stale wakes, want exactly 1"
+
+  # A NEW non-terminal line followed by a new terminal line is a new sighting.
+  printf 'working [at=1790400200]: re-opened for review feedback\n' >> "$state/ship.status"
+  printf 'failed [at=1790400300]: build broke again\n' >> "$state/ship.status"
+  printf '%s' "$(seen_sig "$state/ship.status")" > "$state/.seen-ship_status"
+  total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 3)
+  [ "$total" -eq 1 ] || fail "a new terminal line after a new working line raised $total stale wakes, want exactly 1"
+  unset FM_FAKE_CREW_STATE
+  pass "a worker whose last line is done:/failed: alarms once per line and never again on pane churn"
+}
+
+test_working_pr_line_under_armed_poll_is_bounded() {
+  local window="test:fm-ship" url dir state fakebin total
+  url="https://github.com/o/r/pull/16"
+  export FM_FAKE_CREW_STATE='state: stopped · source: pane · idle at its prompt'
+
+  # Control: the same working line with no poll armed still floods, so the
+  # bounded case cannot pass vacuously.
+  # shellcheck disable=SC2046
+  set -- $(make_replay_worker replay-ci-unarmed "$window" "$url" no "working [at=1790400000]: PR $url open, CI pending")
+  dir=$1; state=$2; fakebin=$3
+  total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 3)
+  [ "$total" -ge 3 ] || fail "an unarmed working PR line raised $total stale wakes across 3 turn ends, so the bounded case proves nothing"
+
+  # shellcheck disable=SC2046
+  set -- $(make_replay_worker replay-ci-armed "$window" "$url" yes "working [at=1790400000]: PR $url open, CI pending")
+  dir=$1; state=$2; fakebin=$3
+  total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 4)
+  [ "$total" -le 1 ] || fail "a working PR line under an armed poll raised $total stale wakes across 4 turn ends, want at most 1"
+
+  # A poll armed for a DIFFERENT PR does not bound it.
+  # shellcheck disable=SC2046
+  set -- $(make_replay_worker replay-ci-other "$window" "$url" yes "working [at=1790400000]: PR https://github.com/o/r/pull/99 open, CI pending")
+  dir=$1; state=$2; fakebin=$3
+  total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 3)
+  [ "$total" -ge 3 ] || fail "a working line naming another PR was bounded by this task's poll ($total wakes)"
+  unset FM_FAKE_CREW_STATE
+  pass "a working line naming a PR is bounded once the merge poll is armed for that same PR"
+}
+
+test_wedged_worker_without_terminal_line_still_alarms() {
+  local window="test:fm-ship" dir state fakebin total
+  export FM_FAKE_CREW_STATE='state: stopped · source: pane · idle at its prompt'
+  # shellcheck disable=SC2046
+  set -- $(make_replay_worker replay-wedged "$window" "https://github.com/o/r/pull/5" yes "working [at=1790400000]: implementing the change")
+  dir=$1; state=$2; fakebin=$3
+  total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 3)
+  [ "$total" -ge 3 ] || fail "an idle worker with no terminal line raised only $total stale wakes across 3 turn ends"
+  unset FM_FAKE_CREW_STATE
+  pass "an idle worker with no terminal line and no PR in its last line still alarms"
 }
 
 # The same drive, for the two DECLARED waits. These were already bounded by the
@@ -4229,6 +4351,21 @@ test_stale_churn_without_a_captain_call_still_alarms() {
     state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
     round=1
     while [ "$round" -le 2 ]; do
+      if [ "$name" = unheld-delivery ] && [ "$round" -eq 2 ]; then
+        # A done: line is terminal: its first sight alarmed once and pane churn
+        # alone never re-fires it (terminal_stale_bound).
+        printf '%s\n' "idle, elapsed ${round}s" > "$capture"
+        hold_watch_launch "$dir" "$out" "$capture"
+        wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 || true
+        wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 || true
+        wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 || true
+        reap "$HOLD_WATCH_PID"
+        wakes=$(hold_stale_wakes "$state")
+        [ "$wakes" -eq 0 ] \
+          || fail "[$name] a done: line re-alarmed on pane churn ($wakes wakes)"
+        round=$((round + 1))
+        continue
+      fi
       hold_watch_surface "$dir" "$out" "$capture" "idle, elapsed ${round}s" \
         || fail "[$name] an unheld stale window stopped alarming on round $round"
       wakes=$(hold_stale_wakes "$state")
@@ -4238,7 +4375,7 @@ test_stale_churn_without_a_captain_call_still_alarms() {
       round=$((round + 1))
     done
   done
-  pass "a stale window with no open captain call keeps alarming on every new hash"
+  pass "a stale window with no open captain call keeps alarming on every new hash, except a done: line, which alarms once"
 }
 
 
@@ -6614,6 +6751,9 @@ test_silent_idle_backstop_surfaces_a_terminal_status_gap
 test_silent_idle_backstop_suppressed_by_declared_pause
 test_nonterminal_stale_paused_absorbed_then_resurfaced
 test_delivered_pr_stale_flood_is_bounded_by_the_armed_merge_poll
+test_terminal_last_line_alarms_once_then_stays_quiet
+test_working_pr_line_under_armed_poll_is_bounded
+test_wedged_worker_without_terminal_line_still_alarms
 test_declared_waits_are_not_realarmed_by_turn_ends
 test_exited_declared_pause_is_bounded_but_live_gate_surfaces
 test_absorbed_replacement_wait_does_not_inherit_the_old_throttle
