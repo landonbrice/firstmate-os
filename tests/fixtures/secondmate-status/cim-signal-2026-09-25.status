@@ -1,0 +1,788 @@
+done: corr=2e78630a58e182f9 synthetic done update 1 with a new fact
+done: corr=d056ae152e8a0614 synthetic done update 2 with a new fact
+done: corr=41ea20ea8bd8e0c3 synthetic done update 3 with a new fact
+done [key=child-outcome-kbafbcdea]: synthetic done update 4 with a new fact https://example.invalid/pr/4
+done [key=child-outcome-k0ce1d592]: synthetic done update 5 with a new fact https://example.invalid/pr/5
+done [key=child-outcome-k629a0ffc]: synthetic done update 6 with a new fact https://example.invalid/pr/6
+done [key=child-outcome-kb4a680ea]: synthetic done update 7 with a new fact https://example.invalid/pr/7
+done: corr=ad9eba31c7d0a1e6 synthetic done update 8 with a new fact
+done: corr=755ac71a9bd14e04 synthetic done update 9 with a new fact
+done: corr=a02526f400030726 synthetic done update 10 with a new fact
+working [key=ka2345a7e]: synthetic working update 11 with a new fact
+done [key=child-outcome-k94e1218b]: synthetic done update 12 with a new fact https://example.invalid/pr/12
+done [key=ka2345a7e]: corr=8f5e600e00c7013a synthetic done update 13 with a new fact https://example.invalid/pr/13
+blocked [key=kbe2e416f]: synthetic blocked update 14 with a new fact
+resolved [key=kbe2e416f]: answered: synthetic answer text 15
+done: corr=4e72229ede0c4a36 synthetic done update 16 with a new fact
+blocked [key=pending-reply-k02c7d984]: pending-reply-missed: synthetic blocked update 17 with a new fact
+working [key=k4a23e41e]: corr=ce25cf3baf091b3e synthetic working update 18 with a new fact
+resolved [key=pending-reply-k02c7d984]: pending-reply-resolved: task=mate pending-reply-id=581f9bbd4804ccec via=status
+done: corr=a0c2e4ed24329b14 synthetic done update 20 with a new fact
+done [key=child-outcome-k2e1042e3]: synthetic done update 21 with a new fact https://example.invalid/pr/21
+done [key=child-pr-k6f846296]: synthetic done update 22 with a new fact https://example.invalid/pr/22
+done [key=merged-k07bbcac4]: synthetic done update 23 with a new fact https://example.invalid/pr/23
+done [key=k4b375549]: corr=ce25cf3baf091b3e synthetic done update 24 with a new fact https://example.invalid/pr/24
+done [key=child-outcome-k6fbe9d03]: synthetic done update 25 with a new fact
+needs-decision [key=captain-hold-k63707a84]: synthetic needs-decision update 26 with a new fact
+done [key=k024b6bde]: corr=ce25cf3baf091b3e synthetic done update 27 with a new fact
+working [key=k869354fd]: corr=4d71af4c3e948bc1 synthetic working update 28 with a new fact
+working [key=kf4db141a]: corr=5e88faa16dadf323 synthetic working update 29 with a new fact
+done [key=child-outcome-k6083e5e1]: synthetic done update 30 with a new fact https://example.invalid/pr/30
+done [key=child-pr-kefb07339]: synthetic done update 31 with a new fact https://example.invalid/pr/31
+done [key=merged-k48bee516]: synthetic done update 32 with a new fact https://example.invalid/pr/32
+done [key=k869354fd]: corr=4d71af4c3e948bc1 synthetic done update 33 with a new fact https://example.invalid/pr/33
+resolved [key=captain-hold-k63707a84]: answered: synthetic answer text 34
+done [key=child-outcome-k34249402]: synthetic done update 35 with a new fact https://example.invalid/pr/35
+resolved [key=captain-hold-k63707a84]: captain hold item-7e3909: answered
+done [key=child-pr-k9af9fa95]: synthetic done update 37 with a new fact https://example.invalid/pr/37
+done: corr=f9973a2d64a823ab synthetic done update 38 with a new fact
+working [key=kf4db141a]: corr=177a8c671f7a6f26 synthetic working update 39 with a new fact https://example.invalid/pr/39
+working [key=kefcefb92]: corr=ddb2d739d5e7b527 instruction understood - synthetic detail 40
+done [key=child-outcome-k191d7e18]: synthetic done update 41 with a new fact https://example.invalid/pr/41
+done [key=child-pr-k6de7a5fc]: synthetic done update 42 with a new fact https://example.invalid/pr/42
+done [key=merged-k74c46470]: synthetic done update 43 with a new fact https://example.invalid/pr/43
+done [key=kefcefb92]: corr=ddb2d739d5e7b527 synthetic done update 44 with a new fact https://example.invalid/pr/44
+blocked [key=k1aaf1409]: synthetic blocked update 45 with a new fact
+paused [key=k1aaf1409]: corr=82663d55fffd5637 synthetic paused update 46 with a new fact
+blocked [key=k1aaf1409]: synthetic blocked update 47 with a new fact
+resolved [key=k1aaf1409]: synthetic resolved update 48 with a new fact
+done: corr=0aa0444667e0f9b5 synthetic done update 49 with a new fact https://example.invalid/pr/49
+working [key=kf4db141a]: synthetic working update 50 with a new fact https://example.invalid/pr/50
+done [key=merged-k58db40b8]: synthetic done update 51 with a new fact https://example.invalid/pr/51
+done [key=kf4db141a]: synthetic done update 52 with a new fact https://example.invalid/pr/52
+needs-decision [key=captain-hold-k1e79d454]: synthetic needs-decision update 53 with a new fact
+done [key=child-pr-k494eea68]: synthetic done update 54 with a new fact https://example.invalid/pr/54
+done [key=merged-ka2bc28f5]: synthetic done update 55 with a new fact https://example.invalid/pr/55
+done [key=child-outcome-k73c7756e]: synthetic done update 56 with a new fact https://example.invalid/pr/56
+done: synthetic done update 57 with a new fact https://example.invalid/pr/57
+working [key=k7b2d69b5]: synthetic working update 58 with a new fact
+done [key=child-outcome-k2a7449bd]: synthetic done update 59 with a new fact https://example.invalid/pr/59
+done [key=child-pr-k12c36de2]: synthetic done update 60 with a new fact https://example.invalid/pr/60
+done [key=child-outcome-k4a3c19db]: synthetic done update 61 with a new fact https://example.invalid/pr/61
+working [key=k7b2d69b5]: synthetic working update 62 with a new fact https://example.invalid/pr/62
+done [key=merged-k53672209]: synthetic done update 63 with a new fact https://example.invalid/pr/63
+done [key=k7b2d69b5]: synthetic done update 64 with a new fact https://example.invalid/pr/64
+working [key=ka9c90a79]: synthetic working update 65 with a new fact
+done [key=child-outcome-k3b71582a]: synthetic done update 66 with a new fact https://example.invalid/pr/66
+done [key=child-pr-k65a07873]: synthetic done update 67 with a new fact https://example.invalid/pr/67
+done [key=merged-k3367fa6f]: synthetic done update 68 with a new fact https://example.invalid/pr/68
+done [key=k3eb3916b]: synthetic done update 69 with a new fact https://example.invalid/pr/69
+done [key=child-outcome-kd5e3de92]: synthetic done update 70 with a new fact https://example.invalid/pr/70
+done [key=child-pr-k9dd53233]: synthetic done update 71 with a new fact https://example.invalid/pr/71
+needs-decision [key=captain-hold-k52fedd1a]: synthetic needs-decision update 72 with a new fact
+needs-decision [key=k7a37d21a]: synthetic needs-decision update 73 with a new fact https://example.invalid/pr/73
+resolved [key=captain-hold-k1e79d454]: captain hold item-9ff4eb: answered
+working [key=k1d6eff26]: corr=0fc426dcbfe9fffd instruction recorded - synthetic detail 75
+done [key=merged-k5a482e7e]: synthetic done update 76 with a new fact https://example.invalid/pr/76
+done [key=child-outcome-k5e70f8b8]: synthetic done update 77 with a new fact https://example.invalid/pr/77
+needs-decision [key=captain-hold-k52fedd1a]: synthetic needs-decision update 78 with a new fact
+done [key=k4a23e41e]: corr=ce25cf3baf091b3e synthetic done update 79 with a new fact https://example.invalid/pr/79
+needs-decision [key=k7a37d21a]: synthetic needs-decision update 80 with a new fact
+done [key=child-outcome-k5eea1423]: synthetic done update 81 with a new fact https://example.invalid/pr/81
+done [key=child-pr-ka1003ddb]: synthetic done update 82 with a new fact https://example.invalid/pr/82
+done [key=merged-k67d69aed]: synthetic done update 83 with a new fact https://example.invalid/pr/83
+done: synthetic done update 84 with a new fact https://example.invalid/pr/84
+done [key=child-outcome-k9c3e18e1]: synthetic done update 85 with a new fact https://example.invalid/pr/85
+done [key=child-pr-k912e21fd]: synthetic done update 86 with a new fact https://example.invalid/pr/86
+done [key=child-outcome-kbb8326e3]: synthetic done update 87 with a new fact https://example.invalid/pr/87
+done [key=child-outcome-k0df739a6]: synthetic done update 88 with a new fact https://example.invalid/pr/88
+done [key=merged-k3ccecb72]: synthetic done update 89 with a new fact https://example.invalid/pr/89
+done [key=k1d6eff26]: corr=0fc426dcbfe9fffd synthetic done update 90 with a new fact https://example.invalid/pr/90
+resolved [key=k7a37d21a]: answered: synthetic answer text 91
+resolved [key=captain-hold-k52fedd1a]: answered: synthetic answer text 92
+resolved [key=captain-hold-k52fedd1a]: captain hold item-6ac958: answered
+done: corr=3b7d8ae2f9e2d474 synthetic done update 94 with a new fact
+resolved [key=k7a37d21a]: synthetic resolved update 95 with a new fact
+done: corr=37792e177f8db511 synthetic done update 96 with a new fact
+working [key=k5e5179d3]: corr=c966692a5a682e6d synthetic working update 97 with a new fact
+done [key=child-outcome-kb20ae14b]: synthetic done update 98 with a new fact https://example.invalid/pr/98
+done [key=child-pr-k84cdbada]: synthetic done update 99 with a new fact https://example.invalid/pr/99
+working [key=k5e5179d3]: corr=f892f3649a0a529d synthetic working update 100 with a new fact https://example.invalid/pr/100
+done [key=merged-k968db011]: synthetic done update 101 with a new fact https://example.invalid/pr/101
+done [key=k5e5179d3]: corr=c966692a5a682e6d synthetic done update 102 with a new fact https://example.invalid/pr/102
+resolved [key=captain-hold-kc292ed1f]: captain hold item-4b6dca: answered
+working [key=k0568ea47]: corr=d87ced13f23efd23 synthetic working update 104 with a new fact
+done [key=child-outcome-k5c23f3b3]: synthetic done update 105 with a new fact
+needs-decision [key=captain-hold-ka5f53729]: synthetic needs-decision update 106 with a new fact
+done [key=k0568ea47]: corr=d87ced13f23efd23 synthetic done update 107 with a new fact
+needs-decision [key=k69f7c20a]: synthetic needs-decision update 108 with a new fact
+resolved [key=k69f7c20a]: answered: synthetic answer text 109
+resolved [key=captain-hold-ka5f53729]: captain hold item-f0a162: answered
+working [key=k80a69fda]: corr=2f30313dbcee96f7 synthetic working update 111 with a new fact
+done [key=child-outcome-k36cce607]: synthetic done update 112 with a new fact https://example.invalid/pr/112
+done [key=child-pr-k5d163cab]: synthetic done update 113 with a new fact https://example.invalid/pr/113
+done [key=merged-ke95a5f21]: synthetic done update 114 with a new fact https://example.invalid/pr/114
+done [key=k80a69fda]: corr=2f30313dbcee96f7 corr=a4cc3c2bfe014b4e synthetic done update 115 with a new fact https://example.invalid/pr/115
+working [key=k3c383961]: corr=4fd72eeab5adaf20 synthetic working update 116 with a new fact
+done [key=child-outcome-ka3ffcd26]: synthetic done update 117 with a new fact https://example.invalid/pr/117
+done [key=child-pr-ka617defa]: synthetic done update 118 with a new fact https://example.invalid/pr/118
+done [key=merged-k6a127a04]: synthetic done update 119 with a new fact https://example.invalid/pr/119
+done [key=k41133315]: corr=4fd72eeab5adaf20 corr=c4e9a95f09f50969 synthetic done update 120 with a new fact https://example.invalid/pr/120
+done [key=child-outcome-k5191d85a]: synthetic done update 121 with a new fact
+done [key=k1a334078]: corr=4fd72eeab5adaf20 synthetic done update 122 with a new fact
+working [key=k96475254]: corr=b24b5b793c9b2f3b synthetic working update 123 with a new fact
+done [key=child-outcome-kcfcfef60]: synthetic done update 124 with a new fact https://example.invalid/pr/124
+done [key=child-pr-k1c8a4bb4]: synthetic done update 125 with a new fact https://example.invalid/pr/125
+needs-decision [key=captain-hold-ka9ba0290]: synthetic needs-decision update 126 with a new fact
+working [key=k29b12628]: corr=33065118e8e515e9 synthetic working update 127 with a new fact https://example.invalid/pr/127
+done [key=child-outcome-k630ee642]: synthetic done update 128 with a new fact
+done [key=k96475254]: corr=b24b5b793c9b2f3b synthetic done update 129 with a new fact
+needs-decision [key=k799c4cd6]: synthetic needs-decision update 130 with a new fact
+done [key=merged-k9ce93957]: synthetic done update 131 with a new fact https://example.invalid/pr/131
+done [key=k29b12628]: corr=4fd72eeab5adaf20 synthetic done update 132 with a new fact https://example.invalid/pr/132
+done [key=child-outcome-k6bd99304]: synthetic done update 133 with a new fact
+working [key=k4dc63f3e]: corr=0fb194f822e27ca9 synthetic working update 134 with a new fact
+done [key=child-outcome-k8b6bab03]: synthetic done update 135 with a new fact https://example.invalid/pr/135
+done [key=child-pr-kf249b99f]: synthetic done update 136 with a new fact https://example.invalid/pr/136
+done [key=k4dc63f3e]: corr=0fb194f822e27ca9 synthetic done update 137 with a new fact https://example.invalid/pr/137
+done [key=merged-kc8a42fb5]: synthetic done update 138 with a new fact https://example.invalid/pr/138
+done [key=k4dc63f3e]: corr=4aa634003a2a198f synthetic done update 139 with a new fact https://example.invalid/pr/139
+needs-decision [key=captain-hold-kb5789330]: synthetic needs-decision update 140 with a new fact
+needs-decision [key=captain-hold-kbfe415f4]: synthetic needs-decision update 141 with a new fact
+done: corr=291a000315e1c37d synthetic done update 142 with a new fact
+needs-decision [key=captain-hold-ke424d8fb]: synthetic needs-decision update 143 with a new fact
+done: corr=fda33ab11b62db54 synthetic done update 144 with a new fact
+resolved [key=captain-hold-ka9ba0290]: answered: synthetic answer text 145
+resolved [key=k799c4cd6]: answered: synthetic answer text 146
+resolved [key=captain-hold-kb5789330]: answered: synthetic answer text 147
+resolved [key=captain-hold-kbfe415f4]: answered: synthetic answer text 148
+resolved [key=captain-hold-ka9ba0290]: captain hold item-8990fe: answered
+resolved [key=captain-hold-kb5789330]: captain hold item-4b6ff0: answered
+resolved [key=captain-hold-kbfe415f4]: captain hold item-d0fa4d: answered
+resolved [key=captain-hold-kb5789330]: captain hold item-4b6ff0: released
+working [key=k799c4cd6]: corr=b12c7c0520e7b956 corr=ce8441d66f5a7cf1 synthetic working update 153 with a new fact
+done [key=child-outcome-k35933342]: synthetic done update 154 with a new fact https://example.invalid/pr/154
+done [key=child-pr-k54a4f5b5]: synthetic done update 155 with a new fact https://example.invalid/pr/155
+done [key=merged-k0d5398ca]: synthetic done update 156 with a new fact https://example.invalid/pr/156
+done [key=k8b106f7c]: corr=ce8441d66f5a7cf1 synthetic done update 157 with a new fact https://example.invalid/pr/157
+resolved [key=captain-hold-ke424d8fb]: answered: synthetic answer text 158
+resolved [key=captain-hold-ke424d8fb]: captain hold item-4eb94e: released
+working [key=kb7f69292]: corr=13afc15c50f239f4 instruction understood - synthetic detail 160
+done [key=child-outcome-k4e0308cc]: synthetic done update 161 with a new fact
+done [key=k799c4cd6]: corr=b12c7c0520e7b956 synthetic done update 162 with a new fact
+done [key=child-outcome-k273ff7a2]: synthetic done update 163 with a new fact https://example.invalid/pr/163
+done [key=child-pr-k64a0249c]: synthetic done update 164 with a new fact https://example.invalid/pr/164
+done [key=merged-k29429d43]: synthetic done update 165 with a new fact https://example.invalid/pr/165
+needs-decision [key=k1f8c7670]: synthetic needs-decision update 166 with a new fact https://example.invalid/pr/166
+resolved [key=k1f8c7670]: answered: synthetic answer text 167
+working [key=k1f8c7670]: corr=988afa983c99082c synthetic working update 168 with a new fact
+done [key=child-outcome-k8ac9bfdb]: synthetic done update 169 with a new fact
+done [key=k1f8c7670]: corr=988afa983c99082c synthetic done update 170 with a new fact
+needs-decision [key=k5ca4e813]: synthetic needs-decision update 171 with a new fact
+resolved [key=captain-hold-k861e1f86]: captain hold item-d0fa4d: released
+working [key=ka3c8f459]: corr=445015822c5dd5ff instruction taken - synthetic detail 173
+done [key=child-outcome-k490dbfb5]: synthetic done update 174 with a new fact https://example.invalid/pr/174
+done [key=child-pr-k1b339f4b]: synthetic done update 175 with a new fact https://example.invalid/pr/175
+done [key=merged-k52fb4d59]: synthetic done update 176 with a new fact https://example.invalid/pr/176
+done [key=ka3c8f459]: corr=445015822c5dd5ff synthetic done update 177 with a new fact https://example.invalid/pr/177
+resolved [key=k5ca4e813]: answered: synthetic answer text 178
+done: corr=a5dc8cdea94eb35e synthetic done update 179 with a new fact
+working [key=kdfc6ed2b]: corr=982de3184d9f1579 synthetic working update 180 with a new fact
+blocked [key=kdfc6ed2b]: corr=5e6210fe6e2167de synthetic blocked update 181 with a new fact
+needs-decision [key=kdfc6ed2b]: synthetic needs-decision update 182 with a new fact
+resolved [key=kdfc6ed2b]: answered: synthetic answer text 183
+working [key=kdfc6ed2b]: corr=d835340bc509792a synthetic working update 184 with a new fact
+blocked [key=kdfc6ed2b]: corr=d835340bc509792a synthetic blocked update 185 with a new fact
+resolved [key=kdfc6ed2b]: answered: synthetic answer text 186
+working [key=kdfc6ed2b]: corr=50e15a61b58d3481 synthetic working update 187 with a new fact
+working [key=kdc7b06a6]: corr=edebc4eb65078d11 synthetic working update 188 with a new fact
+needs-decision [key=captain-hold-kc36ea8f8]: synthetic needs-decision update 189 with a new fact
+needs-decision [key=kba97f8a0]: synthetic needs-decision update 190 with a new fact
+needs-decision [key=captain-hold-k4d41696d]: synthetic needs-decision update 191 with a new fact
+done [key=child-outcome-kef3eff4d]: synthetic done update 192 with a new fact
+needs-decision [key=k22cec74a]: synthetic needs-decision update 193 with a new fact
+done [key=child-outcome-k3cb4a093]: synthetic done update 194 with a new fact https://example.invalid/pr/194
+done [key=child-pr-kc4b91641]: synthetic done update 195 with a new fact https://example.invalid/pr/195
+done [key=merged-kfc3eb5e7]: synthetic done update 196 with a new fact https://example.invalid/pr/196
+resolved [key=captain-hold-k4d41696d]: answered: synthetic answer text 197
+resolved [key=k22cec74a]: answered: synthetic answer text 198
+resolved [key=captain-hold-kc36ea8f8]: answered: synthetic answer text 199
+resolved [key=kba97f8a0]: answered: synthetic answer text 200
+done [key=kff3aa06d]: corr=edebc4eb65078d11 synthetic done update 201 with a new fact https://example.invalid/pr/201
+resolved [key=captain-hold-k4d41696d]: captain hold item-bb293e: released
+working [key=k2816f617]: corr=3a8a0efe560547c0 synthetic working update 203 with a new fact
+done [key=child-outcome-k20906e99]: synthetic done update 204 with a new fact https://example.invalid/pr/204
+done [key=child-pr-k10b17aa0]: synthetic done update 205 with a new fact https://example.invalid/pr/205
+done [key=merged-kda4d825e]: synthetic done update 206 with a new fact https://example.invalid/pr/206
+done [key=k501266c8]: corr=edebc4eb65078d11 synthetic done update 207 with a new fact https://example.invalid/pr/207
+needs-decision [key=captain-hold-kc36ea8f8]: synthetic needs-decision update 208 with a new fact
+done [key=child-outcome-k180b2c15]: synthetic done update 209 with a new fact
+needs-decision [key=captain-hold-kc36ea8f8]: synthetic needs-decision update 210 with a new fact
+needs-decision [key=kba97f8a0]: synthetic needs-decision update 211 with a new fact
+done [key=child-outcome-k18cc94f3]: synthetic done update 212 with a new fact https://example.invalid/pr/212
+done [key=child-pr-k70e639d6]: synthetic done update 213 with a new fact https://example.invalid/pr/213
+done [key=merged-k3d3d376c]: synthetic done update 214 with a new fact https://example.invalid/pr/214
+done [key=k51daf43e]: corr=3a8a0efe560547c0 synthetic done update 215 with a new fact https://example.invalid/pr/215
+resolved [key=captain-hold-kc36ea8f8]: answered: synthetic answer text 216
+resolved [key=kba97f8a0]: answered: synthetic answer text 217
+resolved [key=captain-hold-kc36ea8f8]: captain hold item-26214d: released
+working [key=kba97f8a0]: corr=424186acc156ba78 synthetic working update 219 with a new fact
+done [key=child-outcome-ke2ab5f1b]: synthetic done update 220 with a new fact
+done [key=kba97f8a0]: corr=8b0ee5732275ae87 synthetic done update 221 with a new fact
+done [key=k1f5dbf3f]: synthetic done update 222 with a new fact
+done [key=child-outcome-k0761f359]: synthetic done update 223 with a new fact
+done: corr=61ca1b2b23b5b7df synthetic done update 224 with a new fact
+needs-decision [corr=142cd3eb21dbb392]: synthetic needs-decision update 225 with a new fact
+resolved [corr=3e522679640fa725]: synthetic resolved update 226 with a new fact
+done [key=child-outcome-ka865a658]: synthetic done update 227 with a new fact https://example.invalid/pr/227
+done [key=child-pr-k577418b8]: synthetic done update 228 with a new fact https://example.invalid/pr/228
+done [key=merged-kafee1fd8]: synthetic done update 229 with a new fact https://example.invalid/pr/229
+done [corr=3e522679640fa725]: synthetic done update 230 with a new fact https://example.invalid/pr/230
+needs-decision [key=captain-hold-kc36ea8f8]: synthetic needs-decision update 231 with a new fact
+done [corr=142cd3eb21dbb392]: synthetic done update 232 with a new fact
+resolved [key=captain-hold-kc36ea8f8]: answered: synthetic answer text 233
+done [corr=7a0c7310addb7e18]: synthetic done update 234 with a new fact
+done [corr=7efc0677ba1a8267]: synthetic done update 235 with a new fact
+done [corr=02eae039f1c7a4b9]: synthetic done update 236 with a new fact
+done [corr=99d20edc289e1a17]: synthetic done update 237 with a new fact
+working [corr=48f6c2b2f1f54d9a]: [key=kb1a7fa0f] synthetic working update 238 with a new fact
+done [key=child-outcome-kd405fe72]: synthetic done update 239 with a new fact https://example.invalid/pr/239
+done [key=child-pr-ke41d6dc8]: synthetic done update 240 with a new fact https://example.invalid/pr/240
+done [key=merged-k62809de3]: synthetic done update 241 with a new fact https://example.invalid/pr/241
+done [corr=48f6c2b2f1f54d9a]: [key=kb1a7fa0f] synthetic done update 242 with a new fact https://example.invalid/pr/242
+needs-decision [key=k79d816c4]: synthetic needs-decision update 243 with a new fact https://example.invalid/pr/243
+paused [key=k79d816c4]: synthetic paused update 244 with a new fact
+paused [key=k79d816c4]: synthetic paused update 245 with a new fact
+blocked [key=k79d816c4]: synthetic blocked update 246 with a new fact
+needs-decision [key=captain-hold-k209d1d5b]: synthetic needs-decision update 247 with a new fact
+needs-decision [key=k0a81587c]: synthetic needs-decision update 248 with a new fact
+resolved [key=k0a81587c]: answered: synthetic answer text 249
+resolved [key=captain-hold-k209d1d5b]: answered: synthetic answer text 250
+resolved [key=captain-hold-k209d1d5b]: captain hold item-214949: released
+working [corr=71a41e4fc91c4ece]: [key=k79d816c4] synthetic working update 252 with a new fact https://example.invalid/pr/252
+paused [key=k79d816c4]: synthetic paused update 253 with a new fact https://example.invalid/pr/253
+done [key=child-pr-k65daf93e]: synthetic done update 254 with a new fact https://example.invalid/pr/254
+done [key=merged-k56d24c1a]: synthetic done update 255 with a new fact https://example.invalid/pr/255
+blocked [key=keb1d572e]: synthetic blocked update 256 with a new fact https://example.invalid/pr/256
+blocked [key=keb1d572e]: synthetic blocked update 257 with a new fact
+paused [key=k79d816c4]: synthetic paused update 258 with a new fact
+working [corr=2400c5db50f7c5ad]: [key=k79d816c4] synthetic working update 259 with a new fact
+needs-decision [corr=2400c5db50f7c5ad]: [key=k79d816c4] synthetic needs-decision update 260 with a new fact
+resolved [key=k79d816c4]: answered: synthetic answer text 261
+needs-decision [corr=d41f97bf047e857f]: [key=k79d816c4] synthetic needs-decision update 262 with a new fact
+resolved [key=k79d816c4]: answered: synthetic answer text 263
+paused [key=k79d816c4]: synthetic paused update 264 with a new fact
+paused [corr=1e69d109de6c0e24]: [key=k79d816c4] synthetic paused update 265 with a new fact
+done [key=child-outcome-k1bc7c58b]: synthetic done update 266 with a new fact https://example.invalid/pr/266
+paused [corr=b2e5f08148177e50]: [key=k79d816c4] synthetic paused update 267 with a new fact
+needs-decision [key=captain-hold-kf5c03e85]: synthetic needs-decision update 268 with a new fact
+paused [key=k79d816c4]: synthetic paused update 269 with a new fact
+working [corr=2cabbedc7d68c657]: [key=k4135b63d] synthetic working update 270 with a new fact
+needs-decision [corr=d68a49efc0de0e3d]: [key=k4135b63d] synthetic needs-decision update 271 with a new fact https://example.invalid/pr/271
+done [key=child-outcome-kae4b3609]: synthetic done update 272 with a new fact https://example.invalid/pr/272
+resolved [key=k4135b63d]: answered: synthetic answer text 273
+done [key=child-pr-kf24b8e87]: synthetic done update 274 with a new fact https://example.invalid/pr/274
+done [key=merged-k9ba826f0]: synthetic done update 275 with a new fact https://example.invalid/pr/275
+done [corr=15907a1bb3fc801e]: [key=k4135b63d] synthetic done update 276 with a new fact https://example.invalid/pr/276
+needs-decision [key=captain-hold-kc962c8bc]: synthetic needs-decision update 277 with a new fact
+paused [key=k79d816c4]: synthetic paused update 278 with a new fact
+done [corr=f48b4a96f171cfb1]: [key=kd16a7031] synthetic done update 279 with a new fact
+continuation detail line 280
+continuation detail line 281
+continuation detail line 282
+continuation detail line 283
+continuation detail line 284
+continuation detail line 285
+continuation detail line 286
+continuation detail line 287
+continuation detail line 288
+continuation detail line 289
+continuation detail line 290
+continuation detail line 291
+continuation detail line 292
+continuation detail line 293
+continuation detail line 294
+continuation detail line 295
+resolved [key=keb1d572e]: answered: synthetic answer text 296
+paused [corr=aa81ae74a186d6d9]: [key=k79d816c4] synthetic paused update 297 with a new fact
+needs-decision [corr=97cfba7a4e00096b]: [key=k42533e15] synthetic needs-decision update 298 with a new fact
+continuation detail line 299
+continuation detail line 300
+continuation detail line 301
+continuation detail line 302
+continuation detail line 303
+continuation detail line 304 - merged
+resolved [key=k42533e15]: answered: synthetic answer text 305
+working [corr=c34598aa892a9861]: [key=ke875dc4a] synthetic working update 306 with a new fact
+resolved [key=captain-hold-kf5c03e85]: synthetic resolved update 307 with a new fact
+resolved [key=captain-hold-kc962c8bc]: synthetic resolved update 308 with a new fact
+done [key=child-outcome-k0b807016]: synthetic done update 309 with a new fact
+done [corr=4913d6c4b1d06d06]: [key=ke875dc4a] synthetic done update 310 with a new fact
+continuation detail line 311
+continuation detail line 312
+continuation detail line 313
+continuation detail line 314
+continuation detail line 315
+continuation detail line 316
+continuation detail line 317
+continuation detail line 318
+done [corr=4913d6c4b1d06d06]: [key=ke875dc4a] synthetic done update 319 with a new fact
+continuation detail line 320
+continuation detail line 321
+continuation detail line 322
+continuation detail line 323
+continuation detail line 324
+continuation detail line 325
+continuation detail line 326
+continuation detail line 327
+note [corr=4913d6c4b1d06d06]: [key=ke875dc4a] synthetic note update 328 with a new fact
+continuation detail line 329
+continuation detail line 330
+continuation detail line 331
+continuation detail line 332
+done [key=child-outcome-k0e04c389]: synthetic done update 333 with a new fact https://example.invalid/pr/333
+continuation detail line 334 - merged https://example.invalid/pr/334
+continuation detail line 335
+continuation detail line 336
+continuation detail line 337
+continuation detail line 338
+continuation detail line 339
+continuation detail line 340
+continuation detail line 341
+continuation detail line 342
+continuation detail line 343
+continuation detail line 344
+needs-decision [key=k471754e7]: synthetic needs-decision update 345 with a new fact
+resolved [key=k471754e7]: synthetic resolved update 346 with a new fact https://example.invalid/pr/346
+done [key=child-pr-k06fc5b7e]: synthetic done update 347 with a new fact https://example.invalid/pr/347
+done [key=merged-kfc8aec69]: synthetic done update 348 with a new fact https://example.invalid/pr/348
+done [corr=c83d0b0fac078de2]: [key=k471754e7] synthetic done update 349 with a new fact https://example.invalid/pr/349
+continuation detail line 350
+continuation detail line 351
+continuation detail line 352
+continuation detail line 353
+continuation detail line 354
+continuation detail line 355
+continuation detail line 356
+continuation detail line 357
+needs-decision [corr=f7d9b1aa98f571df]: [key=k65b6b569] synthetic needs-decision update 358 with a new fact
+continuation detail line 359
+continuation detail line 360
+continuation detail line 361
+continuation detail line 362
+continuation detail line 363
+continuation detail line 364
+continuation detail line 365
+continuation detail line 366
+continuation detail line 367
+continuation detail line 368
+continuation detail line 369
+continuation detail line 370
+continuation detail line 371
+continuation detail line 372
+resolved [key=k65b6b569]: answered: synthetic answer text 373
+needs-decision [corr=ed0c8bafee7db5cc]: [key=k1ee0b168] synthetic needs-decision update 374 with a new fact
+continuation detail line 375
+continuation detail line 376
+continuation detail line 377
+continuation detail line 378
+continuation detail line 379
+continuation detail line 380
+continuation detail line 381
+continuation detail line 382
+continuation detail line 383
+continuation detail line 384
+continuation detail line 385
+continuation detail line 386
+continuation detail line 387
+continuation detail line 388
+continuation detail line 389 - merged
+continuation detail line 390
+continuation detail line 391
+continuation detail line 392
+continuation detail line 393
+continuation detail line 394
+continuation detail line 395
+continuation detail line 396
+continuation detail line 397
+continuation detail line 398
+continuation detail line 399
+done [key=child-outcome-k3b205dd3]: synthetic done update 400 with a new fact https://example.invalid/pr/400
+needs-decision [corr=ed0c8bafee7db5cc]: [key=ke55e8f8f] synthetic needs-decision update 401 with a new fact https://example.invalid/pr/401
+continuation detail line 402
+continuation detail line 403
+continuation detail line 404
+continuation detail line 405
+continuation detail line 406
+continuation detail line 407
+continuation detail line 408
+continuation detail line 409
+continuation detail line 410
+continuation detail line 411
+continuation detail line 412
+continuation detail line 413
+continuation detail line 414
+continuation detail line 415
+resolved [key=k1ee0b168]: answered: synthetic answer text 416
+done [corr=22827275e21ad1ab]: [key=k002277e3] synthetic done update 417 with a new fact
+continuation detail line 418
+continuation detail line 419
+continuation detail line 420
+continuation detail line 421
+  status: continuation detail line 422
+continuation detail line 423
+continuation detail line 424
+continuation detail line 425
+continuation detail line 426 - merged
+continuation detail line 427
+continuation detail line 428
+continuation detail line 429
+continuation detail line 430
+continuation detail line 431
+continuation detail line 432
+resolved [key=ke55e8f8f]: synthetic resolved update 433 with a new fact https://example.invalid/pr/433
+done [key=child-pr-k68d55fc4]: synthetic done update 434 with a new fact https://example.invalid/pr/434
+done [key=merged-kf59970e5]: synthetic done update 435 with a new fact https://example.invalid/pr/435
+done [corr=2df72fa8f121cf48]: [key=k0c1fb4f3] synthetic done update 436 with a new fact
+continuation detail line 437
+continuation detail line 438 - merged https://example.invalid/pr/438
+continuation detail line 439
+continuation detail line 440
+continuation detail line 441
+continuation detail line 442
+continuation detail line 443
+continuation detail line 444
+continuation detail line 445
+continuation detail line 446
+done [corr=719807700200bd5a]: [key=ke55e8f8f] synthetic done update 447 with a new fact
+continuation detail line 448
+continuation detail line 449
+continuation detail line 450
+continuation detail line 451
+continuation detail line 452
+continuation detail line 453 - merged
+continuation detail line 454
+continuation detail line 455
+done [corr=3ed5cefedfb471f5]: [key=k0c1fb4f3] synthetic done update 456 with a new fact
+continuation detail line 457
+continuation detail line 458
+continuation detail line 459
+continuation detail line 460
+continuation detail line 461
+continuation detail line 462
+working [corr=3ed5cefedfb471f5]: [key=k6dbe6407] synthetic working update 463 with a new fact
+continuation detail line 464
+continuation detail line 465
+continuation detail line 466
+continuation detail line 467
+continuation detail line 468
+continuation detail line 469
+continuation detail line 470
+continuation detail line 471
+continuation detail line 472
+continuation detail line 473 - merged
+working [corr=3562af1cd6d3faf9]: [key=keb2c4e46] synthetic working update 474 with a new fact
+continuation detail line 475
+continuation detail line 476
+continuation detail line 477
+continuation detail line 478
+continuation detail line 479
+continuation detail line 480
+continuation detail line 481
+continuation detail line 482
+continuation detail line 483
+continuation detail line 484
+continuation detail line 485
+continuation detail line 486
+done [corr=3562af1cd6d3faf9]: [key=keb2c4e46] synthetic done update 487 with a new fact
+continuation detail line 488
+continuation detail line 489
+continuation detail line 490
+continuation detail line 491
+continuation detail line 492
+continuation detail line 493
+continuation detail line 494
+continuation detail line 495
+continuation detail line 496
+continuation detail line 497
+continuation detail line 498
+continuation detail line 499
+continuation detail line 500
+continuation detail line 501
+continuation detail line 502
+continuation detail line 503
+continuation detail line 504
+needs-decision [key=captain-hold-k7b1578d3]: synthetic needs-decision update 505 with a new fact
+done [corr=5998d4ab5ec093f7]: [key=k54fe17e9] synthetic done update 506 with a new fact
+continuation detail line 507
+continuation detail line 508
+continuation detail line 509
+continuation detail line 510
+continuation detail line 511
+continuation detail line 512 - blocked:
+continuation detail line 513
+continuation detail line 514
+continuation detail line 515
+continuation detail line 516
+continuation detail line 517
+continuation detail line 518
+working [corr=d33abb4a62b4ddfd]: synthetic working update 519 with a new fact
+working [corr=7ef99118000dad00]: synthetic working update 520 with a new fact
+done [key=child-outcome-k6e7958be]: synthetic done update 521 with a new fact https://example.invalid/pr/521
+done [key=child-outcome-k3f7eee5c]: synthetic done update 522 with a new fact https://example.invalid/pr/522
+done [key=child-pr-kfb302ab1]: synthetic done update 523 with a new fact https://example.invalid/pr/523
+done [key=merged-k88abc96e]: synthetic done update 524 with a new fact https://example.invalid/pr/524
+done [key=kdf102da0]: synthetic done update 525 with a new fact
+done [key=child-outcome-k1813b5cf]: synthetic done update 526 with a new fact https://example.invalid/pr/526
+done [key=child-pr-kb3c92a37]: synthetic done update 527 with a new fact https://example.invalid/pr/527
+working [key=k097b0d4a]: synthetic working update 528 with a new fact
+done [key=merged-kd2fbf53f]: synthetic done update 529 with a new fact https://example.invalid/pr/529
+resolved [key=k097b0d4a]: synthetic resolved update 530 with a new fact
+done [key=kc529f271]: synthetic done update 531 with a new fact
+done [corr=0f4263dc0579c02e]: synthetic done update 532 with a new fact
+done [corr=26dd299b889f2407]: synthetic done update 533 with a new fact
+done [corr=11c2ab59322c3509]: synthetic done update 534 with a new fact
+done [corr=c0650943b0586b10]: synthetic done update 535 with a new fact
+working [corr=80819f9f6bf15f6d]: instruction received - synthetic detail 536
+working [corr=80819f9f6bf15f6d]: synthetic working update 537 with a new fact
+working [corr=80819f9f6bf15f6d]: synthetic working update 538 with a new fact
+done [corr=80819f9f6bf15f6d]: synthetic done update 539 with a new fact
+done [key=child-outcome-k9b33317b]: synthetic done update 540 with a new fact https://example.invalid/pr/540
+done [key=child-outcome-k2009caad]: synthetic done update 541 with a new fact https://example.invalid/pr/541
+done [key=child-pr-kb7245db2]: synthetic done update 542 with a new fact https://example.invalid/pr/542
+done [key=child-pr-kc3a2e822]: synthetic done update 543 with a new fact https://example.invalid/pr/543
+needs-decision [key=kf3e69b0b]: synthetic needs-decision update 544 with a new fact https://example.invalid/pr/544
+done [key=child-outcome-k00b9b241]: synthetic done update 545 with a new fact https://example.invalid/pr/545
+done [key=child-pr-kd13260c2]: synthetic done update 546 with a new fact https://example.invalid/pr/546
+done [key=merged-k7824fad2]: synthetic done update 547 with a new fact https://example.invalid/pr/547
+done: synthetic done update 548 with a new fact https://example.invalid/pr/548
+done [key=child-pr-kccd3c6d2]: synthetic done update 549 with a new fact https://example.invalid/pr/549
+done [key=child-outcome-k8f4deb34]: synthetic done update 550 with a new fact https://example.invalid/pr/550
+done [key=child-outcome-k2b134278]: synthetic done update 551 with a new fact https://example.invalid/pr/551
+done [key=merged-kba1bd955]: synthetic done update 552 with a new fact https://example.invalid/pr/552
+done: synthetic done update 553 with a new fact https://example.invalid/pr/553
+done [key=child-outcome-k372c160f]: synthetic done update 554 with a new fact https://example.invalid/pr/554
+done [key=child-pr-k8e64a453]: synthetic done update 555 with a new fact https://example.invalid/pr/555
+done [key=merged-k6e7b0f16]: synthetic done update 556 with a new fact https://example.invalid/pr/556
+needs-decision [key=captain-hold-k7b9177db]: synthetic needs-decision update 557 with a new fact
+done: synthetic done update 558 with a new fact https://example.invalid/pr/558
+done [corr=3e7291924e6c1b47]: synthetic done update 559 with a new fact
+done [corr=7e2f06f3e19282c8]: synthetic done update 560 with a new fact
+done [key=child-outcome-kab74844c]: synthetic done update 561 with a new fact https://example.invalid/pr/561
+resolved [key=kf3e69b0b]: answered: synthetic answer text 562
+working [corr=9b71d9d4b4311d68]: synthetic working update 563 with a new fact
+working [corr=5414d64e9f91ee09]: instruction taken - synthetic detail 564
+done [key=child-pr-kb166ef5c]: synthetic done update 565 with a new fact https://example.invalid/pr/565
+resolved [key=captain-hold-k7b9177db]: answered: synthetic answer text 566
+resolved [key=captain-hold-k7b9177db]: captain hold item-bc7fe6: released
+needs-decision [corr=acaeffc2032e33d5]: synthetic needs-decision update 568 with a new fact
+done [key=merged-kffd30536]: synthetic done update 569 with a new fact https://example.invalid/pr/569
+done [corr=5414d64e9f91ee09]: synthetic done update 570 with a new fact https://example.invalid/pr/570
+resolved: synthetic resolved update 571 with a new fact
+paused [key=k1dbc5ea3]: synthetic paused update 572 with a new fact
+working [corr=dcef6f2ea45dc9b7]: synthetic working update 573 with a new fact
+done [key=child-outcome-kd3d81fc6]: synthetic done update 574 with a new fact https://example.invalid/pr/574
+done [key=merged-k5d2811e1]: synthetic done update 575 with a new fact https://example.invalid/pr/575
+needs-decision [key=captain-hold-k419e6acc]: synthetic needs-decision update 576 with a new fact
+done [key=child-outcome-k032fe44a]: synthetic done update 577 with a new fact https://example.invalid/pr/577
+working [corr=8f48b8ffd3573da6]: synthetic working update 578 with a new fact
+needs-decision [key=captain-hold-k419e6acc]: synthetic needs-decision update 579 with a new fact
+done [key=merged-kea1982b2]: synthetic done update 580 with a new fact https://example.invalid/pr/580
+done: synthetic done update 581 with a new fact https://example.invalid/pr/581
+needs-decision [corr=8f48b8ffd3573da6]: [key=k427ad5e3] synthetic needs-decision update 582 with a new fact
+needs-decision [key=k427ad5e3]: synthetic needs-decision update 583 with a new fact
+resolved [key=k427ad5e3]: answered: synthetic answer text 584
+working [corr=83fc84e815099eba]: instruction taken - synthetic detail 585
+done [key=child-outcome-k53784acf]: synthetic done update 586 with a new fact https://example.invalid/pr/586
+needs-decision [key=kff03f533]: synthetic needs-decision update 587 with a new fact https://example.invalid/pr/587
+resolved [key=kff03f533]: answered: synthetic answer text 588
+working [corr=aabcc6154fb008fd]: synthetic working update 589 with a new fact
+paused [key=k327b7ced]: synthetic paused update 590 with a new fact
+working [corr=32758f5932d4286a]: instruction taken - synthetic detail 591
+done [key=child-outcome-k5d3d473c]: synthetic done update 592 with a new fact
+done [corr=32758f5932d4286a]: synthetic done update 593 with a new fact
+done [corr=aabcc6154fb008fd]: synthetic done update 594 with a new fact
+done [corr=2e34f7af93bac3c0]: synthetic done update 595 with a new fact
+working [corr=fe0fb57be21e92e0]: synthetic working update 596 with a new fact
+done [corr=76abd755535d19c4]: synthetic done update 597 with a new fact
+done [corr=d49675e6b507f628]: synthetic done update 598 with a new fact
+done [corr=469993176a268fc2]: synthetic done update 599 with a new fact
+done [key=child-outcome-kf24aeeca]: synthetic done update 600 with a new fact https://example.invalid/pr/600
+done [key=child-pr-k47204fff]: synthetic done update 601 with a new fact https://example.invalid/pr/601
+done [key=merged-kc2c47290]: synthetic done update 602 with a new fact https://example.invalid/pr/602
+done [corr=fe0fb57be21e92e0]: synthetic done update 603 with a new fact https://example.invalid/pr/603
+needs-decision [key=k76e35c24]: synthetic needs-decision update 604 with a new fact
+resolved [key=k76e35c24]: answered: synthetic answer text 605
+working [corr=8d0951486e27df89]: instruction taken - synthetic detail 606
+done [corr=8d0951486e27df89]: synthetic done update 607 with a new fact
+resolved [key=captain-hold-k419e6acc]: answered: synthetic answer text 608
+resolved [key=captain-hold-k419e6acc]: captain hold item-4cca96: released
+done [corr=47183ef5509a00f3]: synthetic done update 610 with a new fact
+resolved [key=captain-hold-k7b1578d3]: answered: synthetic answer text 611
+done [corr=96d77e9e7bed729a]: synthetic done update 612 with a new fact
+done [key=child-outcome-kac5b6e45]: synthetic done update 613 with a new fact https://example.invalid/pr/613
+done [key=child-pr-k2f9cbb75]: synthetic done update 614 with a new fact https://example.invalid/pr/614
+done [key=merged-k25e0a456]: synthetic done update 615 with a new fact https://example.invalid/pr/615
+done [key=kcbb8b156]: synthetic done update 616 with a new fact https://example.invalid/pr/616
+done [corr=1cd649497622f5b5]: synthetic done update 617 with a new fact
+done [corr=e67e278a9dd8609d]: [key=k30328df9] synthetic done update 618 with a new fact
+working [corr=9873005078b0336f]: synthetic working update 619 with a new fact
+done [key=child-outcome-k9cc9e521]: synthetic done update 620 with a new fact
+done [corr=9873005078b0336f]: synthetic done update 621 with a new fact
+working [corr=81d7c0ca6c551f7d]: synthetic working update 622 with a new fact
+needs-decision [key=captain-hold-k6aea6872]: synthetic needs-decision update 623 with a new fact
+done [key=child-outcome-k621d9db3]: synthetic done update 624 with a new fact
+done [corr=81d7c0ca6c551f7d]: synthetic done update 625 with a new fact
+resolved [key=captain-hold-k6aea6872]: answered: synthetic answer text 626
+resolved [key=captain-hold-k6aea6872]: captain hold item-12be71: answered
+working [corr=493fc5002dea66ef]: instruction recorded - synthetic detail 628
+working [corr=cac25d1cdb5bc3f9]: instruction recorded - synthetic detail 629
+working [corr=35b3fac4064f19dd]: synthetic working update 630 with a new fact
+done [key=child-outcome-kc0ee24c2]: synthetic done update 631 with a new fact
+done [corr=35b3fac4064f19dd]: synthetic done update 632 with a new fact
+needs-decision [key=captain-hold-k90039b75]: synthetic needs-decision update 633 with a new fact
+done [corr=35b3fac4064f19dd]: synthetic done update 634 with a new fact
+done [key=child-outcome-k4e230dba]: synthetic done update 635 with a new fact https://example.invalid/pr/635
+done [key=child-pr-k611c4d52]: synthetic done update 636 with a new fact https://example.invalid/pr/636
+blocked [corr=493fc5002dea66ef]: synthetic blocked update 637 with a new fact https://example.invalid/pr/637
+blocked [corr=cac25d1cdb5bc3f9]: synthetic blocked update 638 with a new fact https://example.invalid/pr/638
+resolved [key=captain-hold-k90039b75]: captain hold item-5d065a: answered
+working [corr=6d6a6f8bdbce34b0]: synthetic working update 640 with a new fact
+done [key=child-outcome-k5f37895a]: synthetic done update 641 with a new fact
+needs-decision [key=captain-hold-kbb997900]: synthetic needs-decision update 642 with a new fact
+working [corr=6d6a6f8bdbce34b0]: synthetic working update 643 with a new fact
+done [key=child-outcome-k4d9deefc]: synthetic done update 644 with a new fact https://example.invalid/pr/644
+done [key=child-pr-k799e3bd7]: synthetic done update 645 with a new fact https://example.invalid/pr/645
+blocked [corr=6d6a6f8bdbce34b0]: synthetic blocked update 646 with a new fact https://example.invalid/pr/646
+working [corr=084508d814f9d322]: instruction recorded - synthetic detail 647
+resolved [key=captain-hold-kbb997900]: answered: synthetic answer text 648
+resolved [key=captain-hold-kbb997900]: captain hold item-69965d: answered
+working [corr=62d544a1b8284635]: synthetic working update 650 with a new fact
+done [corr=43cbe6535457d999]: synthetic done update 651 with a new fact
+done [key=merged-k3a5838b4]: synthetic done update 652 with a new fact https://example.invalid/pr/652
+done [key=merged-k91841283]: synthetic done update 653 with a new fact https://example.invalid/pr/653
+done [corr=fe024825a1448653]: synthetic done update 654 with a new fact https://example.invalid/pr/654
+resolved: synthetic resolved update 655 with a new fact
+done [corr=c702721f631bec7c]: synthetic done update 656 with a new fact
+done [key=child-outcome-ka5c45305]: synthetic done update 657 with a new fact https://example.invalid/pr/657
+done [key=child-pr-k0ba98863]: synthetic done update 658 with a new fact https://example.invalid/pr/658
+done [key=merged-k75d1fc0b]: synthetic done update 659 with a new fact https://example.invalid/pr/659
+done: synthetic done update 660 with a new fact https://example.invalid/pr/660
+working [corr=919d4a7ad8ece3af]: synthetic working update 661 with a new fact
+done [key=child-outcome-k368e02a2]: synthetic done update 662 with a new fact https://example.invalid/pr/662
+done [key=child-pr-k0f04e9a5]: synthetic done update 663 with a new fact https://example.invalid/pr/663
+done [key=merged-k8e605a63]: synthetic done update 664 with a new fact https://example.invalid/pr/664
+done [key=child-pr-k19da89b9]: synthetic done update 665 with a new fact https://example.invalid/pr/665
+done [key=child-outcome-k7c5b81fe]: synthetic done update 666 with a new fact https://example.invalid/pr/666
+working [key=k3f2dbe2c]: synthetic working update 667 with a new fact https://example.invalid/pr/667
+done [key=child-outcome-k5bf1bb8e]: synthetic done update 668 with a new fact https://example.invalid/pr/668
+done [key=merged-k11b2f01d]: synthetic done update 669 with a new fact https://example.invalid/pr/669
+resolved [key=k3f2dbe2c]: synthetic resolved update 670 with a new fact https://example.invalid/pr/670
+done [corr=20175a9b23929964]: synthetic done update 671 with a new fact
+working [corr=ffb49aed87540eb6]: synthetic working update 672 with a new fact
+working [corr=3745437eda64501e]: synthetic working update 673 with a new fact
+done [corr=c1fd9d4f06280928]: synthetic done update 674 with a new fact
+working [key=k713dca83]: corr=515ee6fa0d6d33ef synthetic working update 675 with a new fact
+done [key=child-outcome-k74890a56]: synthetic done update 676 with a new fact
+done [key=k713dca83]: corr=515ee6fa0d6d33ef synthetic done update 677 with a new fact
+working [key=k9b2d7aa5]: corr=ece79983ae20293b synthetic working update 678 with a new fact
+done [key=child-outcome-kfb467035]: synthetic done update 679 with a new fact
+needs-decision [key=k5827b747]: corr=ece79983ae20293b synthetic needs-decision update 680 with a new fact
+resolved [key=k5827b747]: answered: synthetic answer text 681
+working [key=k3811aa01]: corr=fee9165543a765e4 synthetic working update 682 with a new fact
+done [key=child-outcome-kf7ef94fc]: synthetic done update 683 with a new fact
+done [key=k3811aa01]: corr=fee9165543a765e4 synthetic done update 684 with a new fact
+working [key=k829b9105]: corr=ca8134de1ff581d0 synthetic working update 685 with a new fact
+needs-decision [key=captain-hold-ke47154b5]: synthetic needs-decision update 686 with a new fact
+done [key=child-outcome-k4ce53e8c]: synthetic done update 687 with a new fact
+needs-decision [key=k829b9105]: corr=ca8134de1ff581d0 synthetic needs-decision update 688 with a new fact
+resolved [key=captain-hold-ke47154b5]: answered: synthetic answer text 689
+resolved [key=captain-hold-ke47154b5]: captain hold item-a89cb7: answered
+working [key=k90681476]: corr=71778133ac9b1694 instruction recorded - synthetic detail 691
+working [key=kba36ae8b]: corr=a5fd5ea9fa29c85c instruction picked up - synthetic detail 692
+resolved [key=k829b9105]: answered: synthetic answer text 693
+resolved [key=k829b9105]: synthetic resolved update 694 with a new fact
+resolved [key=k829b9105]: corr=7512bf616117e945 instruction noted - synthetic detail 695
+done [key=child-outcome-kb03b89ee]: synthetic done update 696 with a new fact https://example.invalid/pr/696
+done [key=child-pr-k0238f5e0]: synthetic done update 697 with a new fact https://example.invalid/pr/697
+done [key=merged-k9a94cee5]: synthetic done update 698 with a new fact https://example.invalid/pr/698
+done [key=k90681476]: synthetic done update 699 with a new fact https://example.invalid/pr/699
+working [key=kb3588983]: corr=a24751ef2964927f synthetic working update 700 with a new fact
+done [key=child-pr-k68a757af]: synthetic done update 701 with a new fact https://example.invalid/pr/701
+working [key=k5aa541ae]: corr=52d9c3efaffa3287 synthetic working update 702 with a new fact
+done [key=child-outcome-k6b126b87]: synthetic done update 703 with a new fact https://example.invalid/pr/703
+done [key=merged-k3b6da07f]: synthetic done update 704 with a new fact https://example.invalid/pr/704
+done [key=k5aa541ae]: corr=52d9c3efaffa3287 synthetic done update 705 with a new fact https://example.invalid/pr/705
+working [key=k4aa7cb41]: corr=8bb5984a39391cd5 synthetic working update 706 with a new fact
+working [key=k7c901936]: corr=fd62dab31be03af2 instruction received - synthetic detail 707
+done [key=child-outcome-k0eba0483]: synthetic done update 708 with a new fact
+done [key=k4aa7cb41]: corr=8bb5984a39391cd5 synthetic done update 709 with a new fact
+needs-decision [key=captain-hold-k0ec55586]: synthetic needs-decision update 710 with a new fact
+done [key=k7c901936]: corr=fd62dab31be03af2 synthetic done update 711 with a new fact
+working [key=kf499554a]: corr=fc6279a836a89669 synthetic working update 712 with a new fact
+done [key=child-outcome-k473e0fa7]: synthetic done update 713 with a new fact
+done [key=kf499554a]: corr=fc6279a836a89669 synthetic done update 714 with a new fact
+resolved [key=captain-hold-k0ec55586]: answered: synthetic answer text 715
+working [key=k5ae5db3e]: corr=469ed15db049e2a6 instruction received - synthetic detail 716
+working [key=k5ae5db3e]: corr=469ed15db049e2a6 synthetic working update 717 with a new fact
+blocked [key=kec72a091]: corr=4db2aa9dc7927198 synthetic blocked update 718 with a new fact
+done [key=child-outcome-kfd72464a]: synthetic done update 719 with a new fact
+needs-decision [key=k87c0eb32]: corr=357c744746ab41f7 synthetic needs-decision update 720 with a new fact
+working [key=ka88580b4]: corr=4db2aa9dc7927198 instruction understood - synthetic detail 721
+done [key=child-outcome-kd193b1a9]: synthetic done update 722 with a new fact
+working [key=ka88580b4]: corr=357c744746ab41f7 synthetic working update 723 with a new fact
+resolved [key=kec72a091]: answered: synthetic answer text 724
+working [key=k87c0eb32]: corr=4db2aa9dc7927198 synthetic working update 725 with a new fact
+resolved [key=k87c0eb32]: answered: synthetic answer text 726
+resolved [key=k87c0eb32]: corr=d99d99bf0131dfaf synthetic resolved update 727 with a new fact
+working [key=k87c0eb32]: corr=4db2aa9dc7927198 synthetic working update 728 with a new fact
+done [key=child-outcome-k72ecb76f]: synthetic done update 729 with a new fact
+working [key=k5ae5db3e]: corr=357c744746ab41f7 synthetic working update 730 with a new fact
+working [key=k1b5ef85d]: corr=483c17ae3be540c1 synthetic working update 731 with a new fact
+done [key=child-outcome-k5c3db4b0]: synthetic done update 732 with a new fact
+needs-decision [key=k03aa79c3]: corr=483c17ae3be540c1 synthetic needs-decision update 733 with a new fact
+needs-decision [key=captain-hold-k0ec55586]: synthetic needs-decision update 734 with a new fact
+working [key=k971262a9]: corr=59f66d75782e91dc instruction understood - synthetic detail 735
+resolved [key=k03aa79c3]: corr=b6520ec2f3ad5a8e synthetic resolved update 736 with a new fact
+resolved [key=captain-hold-k0ec55586]: answered: synthetic answer text 737
+resolved [key=captain-hold-k0ec55586]: captain hold item-2732c8: answered
+resolved [key=k03aa79c3]: corr=fb03a26cb718d045 synthetic resolved update 739 with a new fact
+done [key=k245d5c92]: corr=f51d2c6f558e8be7 synthetic done update 740 with a new fact
+working [key=k820aadb4]: corr=97cbc62b77f85383 synthetic working update 741 with a new fact
+needs-decision [key=captain-hold-kcd842b10]: synthetic needs-decision update 742 with a new fact
+done [key=child-outcome-k420ab1cf]: synthetic done update 743 with a new fact
+done [key=child-outcome-kc714e970]: synthetic done update 744 with a new fact
+needs-decision [key=k790d47c6]: corr=97cbc62b77f85383 synthetic needs-decision update 745 with a new fact
+done [key=child-outcome-k7cfb228f]: synthetic done update 746 with a new fact https://example.invalid/pr/746
+done [key=child-pr-kc966b5bc]: synthetic done update 747 with a new fact https://example.invalid/pr/747
+done [key=merged-k31474231]: synthetic done update 748 with a new fact https://example.invalid/pr/748
+done [key=k820aadb4]: corr=97cbc62b77f85383 synthetic done update 749 with a new fact https://example.invalid/pr/749
+done [key=child-outcome-kaae1ccd8]: synthetic done update 750 with a new fact https://example.invalid/pr/750
+done [key=k820aadb4]: corr=97cbc62b77f85383 synthetic done update 751 with a new fact
+resolved [key=captain-hold-kcd842b10]: answered: synthetic answer text 752
+resolved [key=k790d47c6]: answered: synthetic answer text 753
+resolved [key=captain-hold-kcd842b10]: captain hold item-0d05fa: answered
+needs-decision [key=captain-hold-k4967d9b0]: synthetic needs-decision update 755 with a new fact
+resolved [key=k790d47c6]: corr=ad32a0a38e8e8fac synthetic resolved update 756 with a new fact
+working [key=kab918a38]: corr=9b9ac4a252894617 same as the previous message, already done
+done [key=child-outcome-kd8e5712f]: synthetic done update 758 with a new fact
+done [key=child-outcome-kf6a1a93a]: synthetic done update 759 with a new fact https://example.invalid/pr/759
+done [key=child-pr-kcf52392a]: synthetic done update 760 with a new fact https://example.invalid/pr/760
+needs-decision [key=kee82fbac]: corr=ad32a0a38e8e8fac synthetic needs-decision update 761 with a new fact https://example.invalid/pr/761
+done [key=merged-kd615bd59]: synthetic done update 762 with a new fact https://example.invalid/pr/762
+resolved [key=kee82fbac]: answered: synthetic answer text 763
+done [key=kee82fbac]: corr=da47ebfa11f1cc79 synthetic done update 764 with a new fact https://example.invalid/pr/764
+working [key=k69676258]: corr=d5ad06b80e7083eb same as the previous message, already done
+working [key=k7365ec8c]: corr=c4a085997fd4beb7 synthetic working update 766 with a new fact
+working [key=kc261fc60]: corr=c4a085997fd4beb7 synthetic working update 767 with a new fact
+working [key=k1057a864]: corr=c4a085997fd4beb7 synthetic working update 768 with a new fact
+working [key=k424a3fbe]: corr=bcd5c4861d97a2d1 synthetic working update 769 with a new fact
+done [key=child-outcome-k69049ed3]: synthetic done update 770 with a new fact
+done [key=k424a3fbe]: corr=bcd5c4861d97a2d1 synthetic done update 771 with a new fact
+done [key=child-outcome-k18a7bb46]: synthetic done update 772 with a new fact
+done [key=k7365ec8c]: corr=c4a085997fd4beb7 synthetic done update 773 with a new fact
+working [key=k84db9542]: corr=f061b805f1512b3f synthetic working update 774 with a new fact
+needs-decision [key=kd919538c]: corr=f061b805f1512b3f synthetic needs-decision update 775 with a new fact https://example.invalid/pr/775
+resolved [key=kd919538c]: answered: synthetic answer text 776
+working [key=k84db9542]: corr=8c601d7aff425d24 synthetic working update 777 with a new fact
+done [key=child-outcome-k62eaa05f]: synthetic done update 778 with a new fact
+needs-decision [key=kdb054206]: corr=8c601d7aff425d24 synthetic needs-decision update 779 with a new fact
+resolved [key=kdb054206]: answered: synthetic answer text 780
+done [key=child-outcome-k4a244e24]: synthetic done update 781 with a new fact
+done [key=k84db9542]: corr=af959f2a5725f9f5 synthetic done update 782 with a new fact
+resolved [key=kd919538c]: synthetic resolved update 783 with a new fact
+resolved [key=kdb054206]: synthetic resolved update 784 with a new fact
+resolved [key=captain-hold-k4967d9b0]: answered: synthetic answer text 785
+resolved [key=captain-hold-k4967d9b0]: captain hold item-25eec0: released
+working [key=k5aed11d8]: corr=28d11ecea796be68 synthetic working update 787 with a new fact
+done [key=child-outcome-k5f54967d]: synthetic done update 788 with a new fact

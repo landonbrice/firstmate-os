@@ -7,9 +7,15 @@
 # readable at the next drain. The watcher-level absorb, triage-log line, and
 # drain presentation are driven end to end in tests/fm-watch-triage.test.sh.
 #
-# The replay case feeds a real secondmate parent log, one append at a time,
-# through the watcher's signal decision with and without the echo rule, on an
-# idle mate that shows no busy evidence (the case the audit measured).
+# The replay case feeds a secondmate parent log, one append at a time, through
+# the watcher's signal decision with and without the echo rule, on an idle mate
+# that shows no busy evidence (the case the audit measured). The fixture mirrors
+# a real 788-line parent log from 2026-09-25 by class: every line keeps its
+# state prefix, key shape (reserved prefixes intact, slugs hashed consistently),
+# correlation-token shape, order, URL presence, and legacy captain-token or
+# prefix match, and every line keeps its echo, URL, and captain-relevance
+# classification, while all project prose, identifiers, URLs, and names are
+# synthetic placeholders.
 set -u
 
 # shellcheck source=tests/wake-helpers.sh
@@ -185,7 +191,7 @@ test_replay_real_secondmate_log() {
   [ "$must_missed" -eq 0 ] || fail "$must_missed milestone appends were absorbed"
   [ $((absorbed * 100)) -ge $((discretionary * 40)) ] \
     || fail "echo rule absorbed $absorbed of $discretionary discretionary wakes, under 40%"
-  pass "replay of a real secondmate log: every milestone still wakes and at least 40% of discretionary wakes are absorbed ($absorbed of $discretionary; $new of $appends appends still wake)"
+  pass "replay of a secondmate log mirroring a real one: every milestone still wakes and at least 40% of discretionary wakes are absorbed ($absorbed of $discretionary; $new of $appends appends still wake)"
 }
 
 test_ack_echo_shapes
