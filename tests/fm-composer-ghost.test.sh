@@ -187,11 +187,16 @@ test_strip_ghost_keeps_muse_composer_colors() {
 test_strip_ghost_keeps_claude_slash_command_colors() {
   local out
   # Claude Code syntax-highlights slash commands (/exit, /clear, etc.) in
-  # truecolor 38;2;87;105;247 (luminance ~115.8). With the 112 threshold,
-  # this real typed input survives ghost stripping.
+  # truecolor 38;2;87;105;247 (luminance ~115.8). With the 128 threshold,
+  # this would otherwise be stripped as ghost text; an explicit check in
+  # fg38_is_dark recognises Claude Code's slash command highlight so real
+  # typed input survives ghost stripping.
   out=$(printf '\xe2\x9d\xaf \033[38;2;87;105;247m/exit\033[0m\n' | fm_tmux_strip_ghost)
   [ "$out" = "$(printf '\xe2\x9d\xaf /exit')" ] \
     || fail "claude slash command was stripped as ghost text: '$out'"
+  out=$(printf '\xe2\x9d\xaf \033[38:2::87:105:247m/exit\033[0m\n' | fm_tmux_strip_ghost)
+  [ "$out" = "$(printf '\xe2\x9d\xaf /exit')" ] \
+    || fail "claude slash command (colon form) was stripped as ghost text: '$out'"
   pass "fm_tmux_strip_ghost keeps claude slash-command syntax-highlighted text"
 }
 

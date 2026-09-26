@@ -240,7 +240,7 @@ fm_composer_normalize_trim_var() {  # <varname>
 #     A reset (SGR 0) or normal-intensity (SGR 22) ends a dim run.
 #   - dark/muted TRUECOLOR foreground runs (SGR 38;2;r;g;b or the colon form
 #     38:2::r:g:b) whose perceived luminance (0.299R + 0.587G + 0.114B) is below
-#     FM_COMPOSER_GHOST_LUMA_MAX (default 112): how grok renders its placeholder
+#     FM_COMPOSER_GHOST_LUMA_MAX (default 128): how grok renders its placeholder
 #     and hint text. A reset (SGR 0), a default-foreground (SGR 39), any base
 #     foreground colour (30-37 / 90-97), or a lighter 38;2 foreground ends the
 #     dark-foreground run. This assumes a DARK terminal theme, the firstmate
@@ -250,19 +250,19 @@ fm_composer_normalize_trim_var() {  # <varname>
 #     no fleet harness uses it for ghost text, so it is kept (real text wins:
 #     under-stripping merely defers, which the max-defer alarm surfaces, while
 #     over-stripping would inject over real input).
-# Setting FM_COMPOSER_GHOST_LUMA_MAX requires balancing Claude and Grok: Claude
-# Code syntax-highlights slash commands (such as /exit) in truecolor
-# 38;2;87;105;247, luminance ~115.8. At 128 that typed input is stripped as ghost
-# text; 112 clears Grok's darkest tested placeholder (38;2;110;106;134,
-# luminance ~110.4) while preserving Claude's slash commands. Muse draws its
-# `⟩` prompt glyph in truecolor 38;2;90;160;255, luminance ~149.9 (verified,
-# muse 0.1.0-R708.1), also well above 112.
+# Claude Code syntax-highlights slash commands (such as /exit) in truecolor
+# 38;2;87;105;247, luminance ~115.8. Because 115.8 is below the 128 threshold
+# required to strip Devin (luminance 124) and Grok placeholders, fg38_is_dark
+# explicitly exempts Claude Code's command highlight so typed slash commands
+# are not stripped as ghost text. Muse draws its `⟩` prompt glyph in truecolor
+# 38;2;90;160;255, luminance ~149.9 (verified, muse 0.1.0-R708.1), safely above
+# 128.
 # The dim/faint and dark-foreground states are tracked together as "de-emphasis";
 # codes are processed left to right within a sequence, so "ESC[0;2m" reads as dim.
 # LC_ALL=C makes awk walk bytes, so multibyte glyphs (e.g. ❯) and de-emphasised
 # runs alike pass through or drop intact without locale-dependent classes.
 fm_composer_strip_ghost() {
-  LC_ALL=C awk -v lumamax="${FM_COMPOSER_GHOST_LUMA_MAX:-112}" '
+  LC_ALL=C awk -v lumamax="${FM_COMPOSER_GHOST_LUMA_MAX:-128}" '
     function sgr_code(v, b) {
       b = v
       sub(/:.*/, "", b)
@@ -288,10 +288,12 @@ fm_composer_strip_ghost() {
         nf = split(spec, f, ":")
         if (f[2] != "2" || nf < 5) return 0
         r = f[nf - 2] + 0; g = f[nf - 1] + 0; b = f[nf] + 0
+        if (r == 87 && g == 105 && b == 247) return 0
         return ((299*r + 587*g + 114*b) / 1000 < lumamax) ? 1 : 0
       }
       if (p + 1 > k || a[p + 1] != "2" || p + 4 > k) return 0
       r = a[p + 2] + 0; g = a[p + 3] + 0; b = a[p + 4] + 0
+      if (r == 87 && g == 105 && b == 247) return 0
       return ((299*r + 587*g + 114*b) / 1000 < lumamax) ? 1 : 0
     }
     {
