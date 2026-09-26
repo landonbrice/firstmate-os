@@ -20,7 +20,9 @@
 # on every wake. Printed reason lines:
 #   signal: <file>...      status/turn-end signals, surfaced when a listed status
 #                          span has a captain-relevant event OR a no-verb signal lacks
-#                          positive execution evidence, unless afk is active
+#                          positive execution evidence, unless afk is active; a
+#                          batch of secondmate logs whose new lines are all
+#                          acknowledgement echoes is absorbed instead
 #   stale: <window>        a provably-working stale is ALWAYS absorbed (with a wedge
 #                          timer) regardless of what the status log says - an active
 #                          run-step or busy pane outranks even a captain-relevant log
@@ -2960,9 +2962,18 @@ EOF
     # fm-primary-pi-watch.ts), and the away daemon, whose handle_durable_wakes
     # passes it to handle_wake (see the comment above handle_wake in
     # bin/fm-supervise-daemon.sh).
+    # A secondmate log whose new lines only acknowledge the parent's own
+    # instruction (fm-classify-lib.sh's status_line_is_ack_echo owns the rule) is
+    # absorbed without either busy proof; the next drain's UNREAD STATUS section
+    # still presents each absorbed line.
+    signal_absorb_label=benign
     # shellcheck disable=SC2086  # same space-separated status-path list
-    if afk_present || [ "$signal_actionable" -eq 0 ] \
-      || { ! signal_crew_provably_working $files && ! signal_turnend_panes_churned $files; }; then
+    if ! afk_present && [ "$signal_actionable" -ne 0 ] && signal_secondmate_echoes_only $files; then
+      signal_absorb_label='acknowledgement echo'
+    fi
+    # shellcheck disable=SC2086  # same space-separated status-path list
+    if [ "$signal_absorb_label" = benign ] && { afk_present || [ "$signal_actionable" -eq 0 ] \
+      || { ! signal_crew_provably_working $files && ! signal_turnend_panes_churned $files; }; }; then
       while IFS=$(printf '\t') read -r sf sig f; do
         [ -n "$sf" ] || continue
         file_reason="$reason"
@@ -3020,7 +3031,7 @@ $pending
 EOF
         wake "$reason"
       fi
-      triage_log "absorbed benign $reason"
+      triage_log "absorbed $signal_absorb_label $reason"
     fi
   fi
 

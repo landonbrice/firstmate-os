@@ -1715,6 +1715,34 @@ test_secondmate_routine_progress_absorbed_then_note_surfaced() {
   pass "a busy secondmate's routine working: is absorbed while its later note: still surfaces"
 }
 
+test_secondmate_ack_echo_absorbed_then_milestone_surfaced() {
+  local dir state fakebin out drain_out pid
+  dir=$(make_case secondmate-ack-echo); state="$dir/state"; fakebin="$dir/fakebin"
+  out="$dir/watch.out"; drain_out="$dir/drain.out"
+  printf 'kind=secondmate\n' > "$state/mate.meta"
+  printf 'working [key=send]: corr=0123456789abcdef option 1 relayed to the worker: queue-only send\n' > "$state/mate.status"
+  # An idle mate has no busy evidence, so only the echo rule can absorb this.
+  export FM_FAKE_CREW_STATE='state: unknown · source: none · idle'
+  watch_bg "$state" "$fakebin" "$out"
+  pid=$!
+  if ! wait_poll_cycle "$state" "$pid"; then
+    reap "$pid"; fail "watcher surfaced an idle secondmate's acknowledgement echo: $(cat "$out")"
+  fi
+  [ ! -s "$out" ] || { reap "$pid"; fail "an acknowledgement echo printed a wake reason: $(cat "$out")"; }
+  [ ! -s "$state/.wake-queue" ] || { reap "$pid"; fail "an acknowledgement echo enqueued a durable wake"; }
+  grep -F "absorbed acknowledgement echo signal: $state/mate.status" "$state/.watch-triage.log" >/dev/null \
+    || { reap "$pid"; fail "the absorbed echo left no triage-log line: $(cat "$state/.watch-triage.log" 2>/dev/null)"; }
+  # A milestone from the same idle mate still wakes on the next append.
+  printf 'done [key=send]: daily sent to 9 recipients\n' >> "$state/mate.status"
+  wait_for_exit "$pid" 100 || fail "watcher absorbed a secondmate done: after absorbing its echo"
+  grep -F "signal: $state/mate.status" "$out" >/dev/null \
+    || fail "watcher did not print the surfaced secondmate done"
+  FM_STATE_OVERRIDE="$state" "$DRAIN" > "$drain_out" 2>/dev/null || fail "drain after the surfaced done failed"
+  sed -n '/^UNREAD STATUS/,$p' "$drain_out" | grep -F 'mate working [key=send]: corr=0123456789abcdef option 1 relayed' >/dev/null \
+    || fail "the absorbed echo was not presented in the drain's UNREAD STATUS section: $(cat "$drain_out")"
+  pass "an idle secondmate's acknowledgement echo is absorbed with a triage line, its later done: wakes, and the drain still presents the echo"
+}
+
 test_secondmate_buried_block_wakes_despite_busy_agent() {
   local dir state fakebin out suffix pid
   for suffix in '' 'note: unrelated progress' 'resolved [key=other]: unrelated answer'; do
@@ -6567,6 +6595,7 @@ test_turn_ended_invalid_churn_deadline_surfaced
 test_turn_ended_surfaced_batch_opens_no_partial_deadline
 test_working_note_not_working_surfaced
 test_secondmate_status_note_surfaced_despite_busy_agent
+test_secondmate_ack_echo_absorbed_then_milestone_surfaced
 test_secondmate_routine_progress_absorbed_then_note_surfaced
 test_secondmate_buried_block_wakes_despite_busy_agent
 test_self_announced_close_does_not_rewake_but_next_note_does
