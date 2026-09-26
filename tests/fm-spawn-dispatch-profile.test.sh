@@ -1182,6 +1182,74 @@ test_claude_secondmate_launch_carries_the_attribution_policy() {
   pass "a claude secondmate launch carries the attribution-off policy too"
 }
 
+make_firstmate_like_worktree() {  # <project-dir>
+  mkdir -p "$1/bin"
+  : > "$1/bin/fm-spawn.sh"
+  printf '# Firstmate\n' > "$1/AGENTS.md"
+  printf '@AGENTS.md\n' > "$1/CLAUDE.md"
+  commit_worktree_files "$1"
+}
+
+# The spawn refreshes a pooled worktree to the project's published default
+# branch, so fixture files are committed and pushed there rather than left in
+# the worktree.
+commit_worktree_files() {  # <project-dir>
+  git -C "$1" add -A && git -C "$1" -c user.name=t -c user.email=t@t commit -q -m fixture &&
+    git -C "$1" push -q origin HEAD
+}
+
+test_claude_firstmate_repo_worker_excludes_the_supervisor_contract() {
+  local rec id out status launch kind
+  for kind in scout ship; do
+    id=profile-claudemd-$kind-z30
+    rec=$(make_spawn_case profile-claudemd-$kind claude "$id")
+    read_case_record "$rec"
+    make_firstmate_like_worktree "$PROJ_DIR"
+    if [ "$kind" = scout ]; then
+      out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$PROJ_DIR" --scout)
+    else
+      out=$(run_ship_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$PROJ_DIR")
+    fi
+    status=$?
+    expect_code 0 "$status" "firstmate-repo claude $kind spawn should succeed"$'\n'"$out"
+    launch=$(cat "$LAUNCH_LOG")
+    assert_contains "$launch" "\"claudeMdExcludes\":[\"$WT_DIR/CLAUDE.md\",\"$WT_DIR/AGENTS.md\"]" \
+      "firstmate-repo $kind launch did not exclude both CLAUDE.md and AGENTS.md"
+    assert_contains "$launch" "--settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false},\"claudeMdExcludes\"" \
+      "firstmate-repo $kind launch lost or reordered the existing settings keys"
+  done
+  pass "a claude worker on the Firstmate repo excludes both CLAUDE.md and AGENTS.md and keeps its settings keys"
+}
+
+test_claude_other_project_and_secondmate_launch_carry_no_excludes() {
+  local rec id sm out status launch
+  id=profile-claudemd-other-z31
+  rec=$(make_spawn_case profile-claudemd-other claude "$id")
+  read_case_record "$rec"
+  printf '# Other project\n' > "$PROJ_DIR/AGENTS.md"
+  printf '@AGENTS.md\n' > "$PROJ_DIR/CLAUDE.md"
+  commit_worktree_files "$PROJ_DIR"
+  out=$(run_ship_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$PROJ_DIR")
+  status=$?
+  expect_code 0 "$status" "other-project claude spawn should succeed"$'\n'"$out"
+  assert_not_contains "$(cat "$LAUNCH_LOG")" "claudeMdExcludes" "another project's worker received the exclude"
+
+  id=profile-claudemd-sm-z32
+  rec=$(make_spawn_case profile-claudemd-sm claude "$id")
+  read_case_record "$rec"
+  sm="$CASE_DIR/secondmate-home"
+  make_seeded_secondmate_home "$sm" "$id"
+  mkdir -p "$sm/bin"
+  : > "$sm/bin/fm-spawn.sh"
+  printf '@AGENTS.md\n' > "$sm/CLAUDE.md"
+  out=$(FM_TEST_CLAUDE_CONFIG_DIR="$CASE_DIR/claude-work" \
+    run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$sm" --secondmate)
+  status=$?
+  expect_code 0 "$status" "secondmate claude spawn should succeed"$'\n'"$out"
+  assert_not_contains "$(cat "$LAUNCH_LOG")" "claudeMdExcludes" "a secondmate received the exclude"
+  pass "another project's worker and a secondmate launch carry no claudeMdExcludes"
+}
+
 test_active_dispatch_profile_does_not_block_secondmate_launch() {
   local rec id sm out status
   id=profile-secondmate-z16
@@ -1659,6 +1727,8 @@ test_claude_secondmate_launch_omits_task_control_channel_authority
 test_claude_long_launch_is_delivered_intact
 test_claude_crewmate_launch_carries_the_attribution_policy
 test_claude_secondmate_launch_carries_the_attribution_policy
+test_claude_firstmate_repo_worker_excludes_the_supervisor_contract
+test_claude_other_project_and_secondmate_launch_carry_no_excludes
 test_active_dispatch_profile_does_not_block_secondmate_launch
 
 echo "# all fm-spawn-dispatch-profile tests passed"
