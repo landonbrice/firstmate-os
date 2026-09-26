@@ -310,6 +310,74 @@ status_is_captain_relevant() {
   _fm_classify_matches "$unstamped" "${FM_CAPTAIN_RE:-$FM_CLASSIFY_CAPTAIN_RE_DEFAULT}"
 }
 
+# Parent-facing acknowledgement echoes.
+# A secondmate's `working:` or `resolved:` line that only acknowledges an
+# instruction the parent itself sent carries nothing the parent must act on, yet
+# an idle mate has no busy evidence, so without this rule every such line cost
+# the primary a full turn. status_line_is_ack_echo is the one owner of what counts
+# as that echo; bin/fm-watch.sh absorbs a signal only when every new line of every
+# signaled secondmate log passes it (signal_secondmate_echoes_only below), and
+# status_line_is_unread_surface keeps each absorbed line readable at the next drain.
+# The rule is deliberately conservative: an echo it misses costs one turn, while
+# a milestone it swallowed would be lost, so every uncertain shape wakes.
+# A line is an echo only when ALL of these hold:
+#   1. its verb is `working` or the resolve verb (never done, needs-decision,
+#      blocked, failed, paused, note, captain-held, or an unrecognized prefix);
+#   2. it carries no URL (`://` anywhere), so a PR link always wakes;
+#   3. its note, after leading `corr=<id>` and `[key=<slug>]` tokens, has one of
+#      these shapes:
+#        a. resolve verb only: a line that restates what the home itself wrote -
+#           `answered: ...` (the text of the parent's own keyed answer),
+#           `captain hold <item>: answered|released`, or `pending-reply-resolved: ...`;
+#        b. either verb: it opens with "same as the/my previous" or
+#           "same decision as the/my previous";
+#        c. either verb: its first clause (the text before the first `;`, `:`,
+#           `,`, `.`, or ` - `) holds at most FM_CLASSIFY_ACK_CLAUSE_WORDS words
+#           and one acknowledgement word from FM_CLASSIFY_ACK_WORDS_RE;
+#   4. shapes b and c also need no attention marker anywhere in the note: no
+#      match for FM_CLASSIFY_ACK_ATTENTION_RE (an ask, a failure, a refusal, a
+#      finding, an urgency word) and no run of three all-capital words, which is
+#      how a mate shouts a milestone such as a daily ready for approval.
+# A multi-line append's continuation prose is not an echo, so it always wakes.
+FM_CLASSIFY_ACK_WORDS_RE='(^|[^[:alnum:]_-])(relayed|recorded|noted|acknowledged|understood|received|taken|picked up)([^[:alnum:]_-]|$)'
+FM_CLASSIFY_ACK_CLAUSE_WORDS=8
+FM_CLASSIFY_ACK_ATTENTION_RE='captain (must|can|needs?|should|to) |(for|to|can|must|please) (the captain to )?approve|approval (needed|required|pending)|your (call|go|pick|word|decision|review)|decision (needed|required|owed)|choice needed|choose|decide|needs? (you|the captain|a )|press |urgent|not (yet )?(sent|delivered|merged|done)|fail|error|block|refus|cannot|can.t|unable|finding|warning|heads-up|flag|risk|question|\?'
+FM_CLASSIFY_ACK_SHOUT_RE="[[:upper:]][[:upper:]']+[[:space:],:]+[[:upper:]][[:upper:]']+[[:space:],:]+[[:upper:]][[:upper:]']+"
+
+status_line_is_ack_echo() {  # <status-line>
+  local line=$1 verb note word clause resolve words
+  [ -n "$line" ] || return 1
+  resolve=${FM_CLASSIFY_RESOLVE_VERB:-$FM_CLASSIFY_RESOLVE_VERB_DEFAULT}
+  status_line_verb "$line" verb
+  case "$verb" in working|"$resolve") ;; *) return 1 ;; esac
+  case "$line" in *://*) return 1 ;; esac
+  note=$(status_line_note "$line")
+  while :; do
+    word=${note%%[[:space:]]*}
+    if _fm_classify_is_corr_token "$word"; then :
+    else
+      case "$word" in \[key=*\]) ;; *) break ;; esac
+    fi
+    note=${note#"$word"}
+    note=${note#"${note%%[![:space:]]*}"}
+  done
+  [ -n "$note" ] || return 1
+  if [ "$verb" = "$resolve" ]; then
+    case "$note" in
+      answered:*|pending-reply-resolved:*) return 0 ;;
+      "captain hold "*": answered"|"captain hold "*": released") return 0 ;;
+    esac
+  fi
+  _fm_classify_matches "$note" "$FM_CLASSIFY_ACK_ATTENTION_RE" && return 1
+  [[ "$note" =~ $FM_CLASSIFY_ACK_SHOUT_RE ]] && return 1
+  _fm_classify_matches "$note" '^same (decision )?as (the|my) previous' && return 0
+  clause=${note%%[;:,.]*}
+  clause=${clause%%' - '*}
+  read -r -a words <<< "$clause"
+  [ "${#words[@]}" -le "$FM_CLASSIFY_ACK_CLAUSE_WORDS" ] || return 1
+  _fm_classify_matches "$clause" "$FM_CLASSIFY_ACK_WORDS_RE"
+}
+
 # 0 if a status line's leading verb is the pause verb (paused: <reason>). A pure
 # read of the line itself, so the daemon's classify_stale can reuse the last line
 # it already read without a fm-crew-state.sh call. Matches only the verb before the
@@ -1930,11 +1998,16 @@ status_new_lines_since_cursor() {  # <status-file> [<captured-end-offset>]
 }
 
 # 0 when a status line is an informational `note:` or a reserved-key
-# pending-reply resolution. Those lines never fold into OPEN DECISIONS, so the
-# drain's unread-status surface is their only guaranteed presentation.
-status_line_is_unread_surface() {  # <status-line>
+# pending-reply resolution, or, with <kind> secondmate, an acknowledgement echo
+# (status_line_is_ack_echo). Those lines never fold into OPEN DECISIONS, and the
+# watcher absorbs a secondmate's echo without a wake, so the drain's
+# unread-status surface is their only guaranteed presentation.
+status_line_is_unread_surface() {  # <status-line> [<kind>]
   local line=$1 verb key note resolve held prefix
   [ -n "$line" ] || return 1
+  if [ "${2:-}" = secondmate ] && status_line_is_ack_echo "$line"; then
+    return 0
+  fi
   verb=$(status_line_verb "$line")
   [ "$verb" = note ] && return 0
   resolve=${FM_CLASSIFY_RESOLVE_VERB:-$FM_CLASSIFY_RESOLVE_VERB_DEFAULT}
@@ -1957,19 +2030,21 @@ status_line_is_unread_surface() {  # <status-line>
 }
 
 # Fleet-wide unread informational lines: one "<task>\t<status-line>" row per
-# still-unread `note:` or pending-reply resolution, in glob (task id) order.
+# still-unread line status_line_is_unread_surface admits for that task's kind,
+# in glob (task id) order.
 # Prints nothing when none are unread. Directory scan rejects status symlinks
 # the same way scan_open_decisions does.
 scan_unread_surface_lines() {  # <state>
-  local state=$1 f task lines line
+  local state=$1 f task lines line kind
   for f in "$state"/*.status; do
     [ -e "$f" ] || continue
     task=$(basename "$f"); task="${task%.status}"
     lines=$(status_new_lines_since_cursor "$f") || return 1
     [ -n "$lines" ] || continue
+    kind=$(grep '^kind=' "$state/$task.meta" 2>/dev/null | tail -1 | cut -d= -f2-)
     while IFS= read -r line; do
       [ -n "$line" ] || continue
-      status_line_is_unread_surface "$line" || continue
+      status_line_is_unread_surface "$line" "$kind" || continue
       printf '%s\t%s\n' "$task" "$line"
     done <<EOF
 $lines
@@ -1979,15 +2054,16 @@ EOF
 }
 
 scan_unread_surface_snapshot() {  # <state> <task-and-endpoint-snapshot>
-  local state=$1 snapshot=$2 task endpoint ident f lines line
+  local state=$1 snapshot=$2 task endpoint ident f lines line kind
   while IFS=$(printf '\t') read -r task endpoint ident; do
     [ -n "$task" ] || continue
     f="$state/$task.status"
     lines=$(status_new_lines_since_cursor "$f" "$endpoint") || return 1
     [ -n "$lines" ] || continue
+    kind=$(grep '^kind=' "$state/$task.meta" 2>/dev/null | tail -1 | cut -d= -f2-)
     while IFS= read -r line; do
       [ -n "$line" ] || continue
-      status_line_is_unread_surface "$line" || continue
+      status_line_is_unread_surface "$line" "$kind" || continue
       printf '%s\t%s\n' "$task" "$line"
     done <<EOF
 $lines
@@ -2655,6 +2731,44 @@ signal_crew_provably_working() {  # <file> ...
   done
   [ -n "$seen" ] || return 1
   return 0
+}
+
+# 0 (absorb) when every file in a no-verb "signal:" wake is a kind=secondmate
+# task's .status log whose lines new since the watcher's classified position are
+# all acknowledgement echoes (status_line_is_ack_echo owns that rule); 1 when any
+# file is anything else, any span is empty or unreadable, or any new line is not
+# an echo. Uses the same classified-position source as
+# _fm_secondmate_status_new_lines_routine above.
+signal_secondmate_echoes_only() {  # <file> ...
+  local f base dir task start size chunk line seen=0
+  for f in "$@"; do
+    base=${f##*/}
+    dir=${f%/*}
+    [ "$dir" != "$f" ] || dir=.
+    case "$base" in *.status) task=${base%.status} ;; *) return 1 ;; esac
+    [ -n "$task" ] || return 1
+    [ "$(grep '^kind=' "$dir/$task.meta" 2>/dev/null | tail -1 | cut -d= -f2-)" = secondmate ] || return 1
+    [ -f "$f" ] && [ -r "$f" ] && [ ! -L "$f" ] || return 1
+    start=0
+    if command -v fm_wake_signal_seen_size >/dev/null 2>&1; then
+      start=$(fm_wake_signal_seen_size "$dir" "$f")
+    fi
+    case "$start" in ''|*[!0-9]*) start=0 ;; esac
+    size=$(_fm_status_file_size "$f") || return 1
+    size=${size//[[:space:]]/}
+    case "$size" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$start" -le "$size" ] || start=0
+    [ "$start" -lt "$size" ] || return 1
+    chunk=$(_fm_status_read_span "$f" "$start" "$((size - start))") || return 1
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in *[![:space:]]*) ;; *) continue ;; esac
+      status_line_is_ack_echo "$line" || return 1
+      seen=1
+    done <<SPAN
+$chunk
+SPAN
+  done
+  [ "$seen" -eq 1 ]
 }
 
 # 0 (terminal/actionable) if a stale window's latest recognized status event is

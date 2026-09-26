@@ -648,6 +648,10 @@ test_secondmate_no_projects_charter() {
     "secondmate charter no longer says the chat is unread"
   assert_grep 'in this home it IS the captain' "$brief" \
     "secondmate charter no longer names the parent channel as the captain"
+  assert_grep 'End a routine turn with no captain-addressed chat summary' "$brief" \
+    "secondmate charter no longer ends routine turns without a chat summary"
+  assert_grep 'Never restate an outcome one of those script lines already carried' "$brief" \
+    "secondmate charter no longer keeps one parent line per child outcome"
   assert_grep 'working [key=<work-slug>]' "$brief" \
     "secondmate charter did not key material routed-work phases"
   assert_grep 'resolved [key=<work-slug>]' "$brief" \
