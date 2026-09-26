@@ -4,7 +4,7 @@
 # Fetches remotes `origin` (the fork) and `upstream` (the source of truth).
 #
 # Usage:
-#   fm-upstream-sync.sh [--check] [--no-pr] [--help]
+#   fm-upstream-sync.sh [--check [--threshold N]] [--no-pr] [--help]
 #
 # Flags:
 #   --check    fetch both remotes; if upstream/main is not an ancestor of
@@ -12,6 +12,14 @@
 #                "upstream: N new commits not in origin/main"
 #              If up to date, print nothing. Exit 0 either way. Usable as a
 #              custom watcher state check (fast, silent when no action needed).
+#   --threshold N
+#              with --check, the drift alert form: print that line only when
+#              more than N upstream commits are missing, and only once per
+#              drift episode. The watcher does not deduplicate check output, so
+#              the reported episode is recorded in $STATE/.upstream-drift
+#              (STATE is FM_STATE_OVERRIDE, else FM_HOME/state, else the repo's
+#              state/) and cleared once the fork is back within N commits, so
+#              the next crossing reports again.
 #   --no-pr    perform the sync and run tests, but stop after tests pass without
 #              pushing or creating a pull request.
 #   --help, -h show this usage and exit 0.
@@ -52,10 +60,12 @@ FM_ROOT="${FM_ROOT_OVERRIDE:-$(git rev-parse --show-toplevel 2>/dev/null || (cd 
 usage() {
   cat <<'EOF'
 Usage:
-  fm-upstream-sync.sh [--check] [--no-pr] [--help]
+  fm-upstream-sync.sh [--check [--threshold N]] [--no-pr] [--help]
 
 Options:
   --check   Check for new upstream commits; silent when up to date, exit 0
+  --threshold N
+            With --check: report only past N missing commits, once per episode
   --no-pr   Run sync merge and tests in a disposable worktree, stop after tests
   --help    Show this help
 EOF
@@ -63,6 +73,7 @@ EOF
 
 check_only=false
 no_pr=false
+threshold=
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -73,6 +84,16 @@ while [ $# -gt 0 ]; do
     --no-pr)
       no_pr=true
       shift
+      ;;
+    --threshold)
+      threshold=${2:-}
+      case "$threshold" in
+        ''|*[!0-9]*)
+          echo "error: --threshold needs a whole number" >&2
+          exit 1
+          ;;
+      esac
+      shift 2
       ;;
     --help|-h)
       usage
@@ -106,16 +127,35 @@ if [ "$has_origin" -eq 0 ] || [ "$has_upstream" -eq 0 ]; then
   exit 1
 fi
 
+if [ -n "$threshold" ] && [ "$check_only" != true ]; then
+  echo "error: --threshold only applies to --check" >&2
+  exit 1
+fi
+
 if [ "$check_only" = true ]; then
   git -C "$FM_ROOT" fetch -q origin 2>/dev/null || true
   git -C "$FM_ROOT" fetch -q upstream 2>/dev/null || true
 
-  if git -C "$FM_ROOT" merge-base --is-ancestor upstream/main origin/main 2>/dev/null; then
+  count=0
+  if ! git -C "$FM_ROOT" merge-base --is-ancestor upstream/main origin/main 2>/dev/null; then
+    count=$(git -C "$FM_ROOT" rev-list --count origin/main..upstream/main 2>/dev/null || echo 0)
+  fi
+
+  if [ -z "$threshold" ]; then
+    [ "$count" -eq 0 ] || printf 'upstream: %s new commits not in origin/main\n' "$count"
     exit 0
   fi
 
-  count=$(git -C "$FM_ROOT" rev-list --count origin/main..upstream/main 2>/dev/null || echo 0)
-  printf 'upstream: %s new commits not in origin/main\n' "$count"
+  state_dir="${FM_STATE_OVERRIDE:-${FM_HOME:-$FM_ROOT}/state}"
+  drift_record="$state_dir/.upstream-drift"
+  if [ "$count" -le "$threshold" ]; then
+    rm -f "$drift_record" 2>/dev/null || true
+    exit 0
+  fi
+  [ -e "$drift_record" ] && exit 0
+  mkdir -p "$state_dir" 2>/dev/null || true
+  printf '%s\n' "$count" > "$drift_record" 2>/dev/null || true
+  printf 'upstream: %s new commits not in origin/main (fork sync due; drift alert past %s)\n' "$count" "$threshold"
   exit 0
 fi
 

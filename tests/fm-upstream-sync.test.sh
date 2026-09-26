@@ -6,6 +6,9 @@
 #   - `--check`: silent when up to date, prints exactly
 #     "upstream: N new commits not in origin/main" when upstream has new commits,
 #     exits 0 either way.
+#   - `--check --threshold N`: silent at or below N missing commits; past N,
+#     prints one line once per drift episode and reports again only after the
+#     fork has caught back up within N.
 #   - Default run when up to date: prints up to date, exits 0.
 #   - Clean merge path: creates disposable worktree under TMPDIR, merges upstream/main
 #     with rerere enabled, runs bin/fm-test-run.sh --changed --base origin/main,
@@ -317,9 +320,59 @@ test_test_failure() {
 }
 
 # Run all test cases
+# --- --check --threshold: the drift alert ------------------------------------
+upstream_commits() {  # <world> <n>
+  local w=$1 n=$2 i=0
+  [ -d "$w/upstream-work" ] || git clone -q "$w/upstream.git" "$w/upstream-work"
+  while [ "$i" -lt "$n" ]; do
+    printf 'u%s\n' "$i" >> "$w/upstream-work/common.txt"
+    git -C "$w/upstream-work" commit -aqm "upstream $i"
+    i=$((i + 1))
+  done
+  git -C "$w/upstream-work" push -q origin main
+}
+
+test_check_threshold_drift_alert() {
+  local w out rc=0 state
+  w=$(new_world check-threshold)
+  export FM_TEST_WORLD="$w"
+  state="$w/state"
+
+  upstream_commits "$w" 2
+  out=$(FM_STATE_OVERRIDE="$state" FM_ROOT_OVERRIDE="$w/work" "$SYNC_BIN" --check --threshold 2 2>&1) || rc=$?
+  assert_equals 0 "$rc" "--threshold at the bound must exit 0"
+  assert_equals "" "$out" "drift at the threshold must stay silent"
+
+  upstream_commits "$w" 1
+  out=$(FM_STATE_OVERRIDE="$state" FM_ROOT_OVERRIDE="$w/work" "$SYNC_BIN" --check --threshold 2 2>&1)
+  assert_equals "upstream: 3 new commits not in origin/main (fork sync due; drift alert past 2)" "$out" \
+    "drift past the threshold must print one line"
+  out=$(FM_STATE_OVERRIDE="$state" FM_ROOT_OVERRIDE="$w/work" "$SYNC_BIN" --check --threshold 2 2>&1)
+  assert_equals "" "$out" "a reported drift episode must not re-wake on the next poll"
+
+  git -C "$w/work" fetch -q upstream
+  git -C "$w/work" merge -q --no-edit upstream/main
+  git -C "$w/work" push -q origin HEAD:main
+  out=$(FM_STATE_OVERRIDE="$state" FM_ROOT_OVERRIDE="$w/work" "$SYNC_BIN" --check --threshold 2 2>&1)
+  assert_equals "" "$out" "a caught-up fork must stay silent"
+  [ ! -e "$state/.upstream-drift" ] || fail "catching up must clear the drift record"
+
+  upstream_commits "$w" 3
+  out=$(FM_STATE_OVERRIDE="$state" FM_ROOT_OVERRIDE="$w/work" "$SYNC_BIN" --check --threshold 2 2>&1)
+  assert_equals "upstream: 3 new commits not in origin/main (fork sync due; drift alert past 2)" "$out" \
+    "a new drift episode must report again"
+
+  rc=0
+  out=$(FM_ROOT_OVERRIDE="$w/work" "$SYNC_BIN" --threshold 2 2>&1) || rc=$?
+  assert_equals 1 "$rc" "--threshold without --check must be refused"
+
+  pass "--check --threshold reports drift once per episode past the bound"
+}
+
 test_missing_remotes
 test_up_to_date
 test_check_line
+test_check_threshold_drift_alert
 test_clean_merge_path
 test_conflict_path
 test_test_failure

@@ -49,6 +49,17 @@ Snapshot the current ruleset, amend that same rule with the authenticated GitHub
 Verify missing or red checks prevent ordinary merging without creating a test merge; administrator override intentionally remains available.
 Coordinate any workflow rollback with its required-check names so a retired check cannot leave ordinary merges waiting forever.
 
+## Syncing a fork
+
+A fork takes upstream in by merge, never by rebase, because every running home only fast-forwards.
+Sync weekly with `bin/fm-upstream-sync.sh`: it merges `upstream/main` into a disposable worktree branch with `git rerere` on, runs the changed tests, and opens a PR against the fork's `main`.
+Where both sides fixed the same failure, keep upstream's version and keep fork code only where upstream does not cover the fork's case.
+Land that PR with a merge commit, never a squash, so the next sync starts from the merged upstream history.
+
+A drift alert in the fork's primary home surfaces a missed week.
+Write a mode-`0700` `state/upstream-drift.check.sh` that exports `FM_HOME` and `FM_ROOT_OVERRIDE` as that home and runs its `bin/fm-upstream-sync.sh --check --threshold 50`, then bind it with `bin/fm-check-register.sh upstream-drift`.
+It wakes firstmate once when the fork falls more than 50 upstream commits behind and again only after a sync brings it back within that bound; retire it with `bin/fm-check-unregister.sh upstream-drift`.
+
 ## Repo conventions
 
 - This repo is a template for running a firstmate orchestrator agent.
