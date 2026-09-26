@@ -1817,6 +1817,7 @@ pause_state_class() {  # <window> <task>
 # whose mate still says `working:` or `done:` does not reach this read. Reaching
 # it would put backlog reads into windows deliberately skipped on ordinary polls.
 STALE_WAIT_DECLARATION=
+STALE_TERMINAL_DECLARATION=
 
 CAPTAIN_CALL_IDENTITY=
 
@@ -1915,12 +1916,57 @@ merge_watch_declaration() {  # <task> <pr-url>
   printf 'merge-watch:%s:%s' "$2" "$(fm_wake_signal_sig "$STATE/$1.status" || true)"
 }
 
-merge_watch_stale_bound() {  # <window-key> <task>
+# A worker whose LAST status line is `done:` (with or without a PR) or `failed:`
+# has already told firstmate everything it will say, so its stale alarm is a cue,
+# not news: the first sight still fires ONCE (tear down, or arm the merge poll),
+# and no later pane hash re-fires for the same line. Pane churn - a clock, a
+# token counter, the redraw at each turn end - never re-arms it; only a status
+# append does, because the marker is bound to the status signature and the last
+# line must still be terminal for this path to be reached at all.
+# The marker is written by terminal_stale_record only after the wake append
+# succeeded, for the reason stale_wait_record gives. Sets STALE_WAIT_DECLARATION
+# to the delivery scope when a valid armed poll exists, so the shared re-surface
+# throttle still records that scope beside the marker.
+terminal_stale_declaration() {  # <task>
+  printf 'terminal:%s' "$(fm_wake_signal_sig "$STATE/$1.status" || true)"
+}
+
+terminal_stale_bound() {  # <window-key> <task>
+  local key=$1 task=$2 last verb
+  STALE_TERMINAL_DECLARATION=
+  [ -n "$task" ] || return 1
+  # An open captain call (captain_call_stale_bound just ran and left its scope in
+  # STALE_WAIT_DECLARATION) owns its own re-surface cadence, so a forgotten call
+  # on a churning pane cannot hide behind the once-only marker.
+  case "$STALE_WAIT_DECLARATION" in captain-hold:*) return 1 ;; esac
+  last=$(last_status_line "$STATE/$task.status")
+  status_line_verb "$last" verb
+  case "$verb" in done|failed) ;; *) return 1 ;; esac
+  STALE_TERMINAL_DECLARATION=$(terminal_stale_declaration "$task")
+  if [ "$verb" = "done" ] && [ -z "$STALE_WAIT_DECLARATION" ] \
+     && fm_pr_poll_artifacts_valid "$STATE" "$task" "$SCRIPT_DIR/fm-pr-poll.sh"; then
+    STALE_WAIT_DECLARATION=$(merge_watch_declaration "$task" "$FM_PR_REG_URL")
+  fi
+  [ "$(cat "$STATE/.terminal-alarmed-$key" 2>/dev/null || true)" = "$STALE_TERMINAL_DECLARATION" ]
+}
+
+terminal_stale_record() {  # <window-key>
+  [ -n "${STALE_TERMINAL_DECLARATION:-}" ] || return 0
+  printf '%s' "$STALE_TERMINAL_DECLARATION" > "$STATE/.terminal-alarmed-$1"
+}
+
+# A worker whose last line is `working:` and names a PR is parked on that PR's CI
+# once this watcher's own merge poll is armed for the SAME url: the poll, not the
+# pane, is what reports the outcome. Bounded like the other declared waits: the
+# first sight alarms and the shared re-surface throttle holds the repeats. Anything the poll registration cannot prove alarms as before.
+awaiting_ci_stale_bound() {  # <window-key> <task>
   local key=$1 task=$2 last
+  STALE_WAIT_DECLARATION=
   [ -n "$task" ] || return 1
   last=$(last_status_line "$STATE/$task.status")
-  [ "$(status_line_verb "$last")" = "done" ] || return 1
+  [ "$(status_line_verb "$last")" = "working" ] || return 1
   fm_pr_poll_artifacts_valid "$STATE" "$task" "$SCRIPT_DIR/fm-pr-poll.sh" || return 1
+  case "$last" in *"$FM_PR_REG_URL"*) ;; *) return 1 ;; esac
   STALE_WAIT_DECLARATION=$(merge_watch_declaration "$task" "$FM_PR_REG_URL")
   stale_wait_throttled "$key" "$STALE_WAIT_DECLARATION"
 }
@@ -1975,6 +2021,11 @@ surface_nonterminal_stale() {  # <window> <hash>
       stale_wait_throttled "$key" "$STALE_WAIT_DECLARATION" && throttled=0
     fi
   elif captain_call_stale_bound "$key" "$task"; then
+    bounded=0
+    throttled=0
+  elif [ -n "$STALE_WAIT_DECLARATION" ]; then
+    bounded=0
+  elif awaiting_ci_stale_bound "$key" "$task"; then
     bounded=0
     throttled=0
   elif [ -n "$STALE_WAIT_DECLARATION" ]; then
@@ -3133,16 +3184,17 @@ EOF
               rm -f "$ssf"
               clear_write_tracking "$key"
               triage_log "absorbed stale (open captain call already surfaced for this status): $w"
-            elif merge_watch_stale_bound "$key" "$task"; then
-              # Same bound, for a delivery this watcher's own merge poll is
-              # already watching (merge_watch_stale_bound above).
+            elif terminal_stale_bound "$key" "$task"; then
+              # The last line is done:/failed: and this line already alarmed once;
+              # pane churn alone never re-fires it (terminal_stale_bound above).
               printf '%s' "$h" > "$sf"
               rm -f "$ssf"
               clear_write_tracking "$key"
-              triage_log "absorbed stale (delivered PR already under an armed merge poll): $w"
+              triage_log "absorbed stale (terminal status line already alarmed once): $w"
             else
               fm_wake_append stale "$w" "stale: $w" || exit 1
               stale_wait_record "$key"
+              terminal_stale_record "$key"
               printf '%s' "$h" > "$sf"
               rm -f "$ssf"
               clear_write_tracking "$key"
@@ -3207,6 +3259,16 @@ EOF
                          triage_log "absorbed non-terminal stale (provably working): $w" ;;
                 *)       handle_paused_stale "$w" "$task" "$h" ;;
               esac
+            elif awaiting_ci_stale_bound "$key" "$task"; then
+              rm -f "$ssf" "$ewf"
+              triage_log "absorbed non-terminal stale (working PR line under an armed merge poll): $w"
+            elif [ -n "$STALE_WAIT_DECLARATION" ]; then
+              # Armed poll for this PR, but the shared re-surface window lapsed:
+              # one recheck, recorded, instead of a wedge escalation every timer.
+              fm_wake_append stale "$w" "stale: $w (idle, working PR line under an armed merge poll, rechecked on a long cadence not a wedge)" || exit 1
+              stale_wait_record "$key"
+              rm -f "$ssf" "$ewf"
+              wake "stale: $w"
             else
               wedge_timer_check "$w" "$ssf" "non-terminal stale" "$ewf" "$task" "$h"
             fi
