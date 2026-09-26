@@ -250,11 +250,13 @@ fm_composer_normalize_trim_var() {  # <varname>
 #     no fleet harness uses it for ghost text, so it is kept (real text wins:
 #     under-stripping merely defers, which the max-defer alarm surfaces, while
 #     over-stripping would inject over real input).
-# Raising FM_COMPOSER_GHOST_LUMA_MAX is not free: muse draws its `⟩` prompt glyph
-# in truecolor 38;2;90;160;255, luminance ~149.9 (verified, muse 0.1.0-R708.1),
-# the tightest margin over the 128 default in the fleet. Above ~150 that glyph is
-# stripped as ghost text, which is why the bare-glyph fallback below must also
-# recognise every agent glyph from the UNSTRIPPED plain row.
+# Claude Code syntax-highlights slash commands (such as /exit) in truecolor
+# 38;2;87;105;247, luminance ~115.8. Because 115.8 is below the 128 threshold
+# required to strip Devin (luminance 124) and Grok placeholders, fg38_is_dark
+# explicitly exempts Claude Code's command highlight so typed slash commands
+# are not stripped as ghost text. Muse draws its `⟩` prompt glyph in truecolor
+# 38;2;90;160;255, luminance ~149.9 (verified, muse 0.1.0-R708.1), safely above
+# 128.
 # The dim/faint and dark-foreground states are tracked together as "de-emphasis";
 # codes are processed left to right within a sequence, so "ESC[0;2m" reads as dim.
 # LC_ALL=C makes awk walk bytes, so multibyte glyphs (e.g. ❯) and de-emphasised
@@ -286,10 +288,12 @@ fm_composer_strip_ghost() {
         nf = split(spec, f, ":")
         if (f[2] != "2" || nf < 5) return 0
         r = f[nf - 2] + 0; g = f[nf - 1] + 0; b = f[nf] + 0
+        if (r == 87 && g == 105 && b == 247) return 0
         return ((299*r + 587*g + 114*b) / 1000 < lumamax) ? 1 : 0
       }
       if (p + 1 > k || a[p + 1] != "2" || p + 4 > k) return 0
       r = a[p + 2] + 0; g = a[p + 3] + 0; b = a[p + 4] + 0
+      if (r == 87 && g == 105 && b == 247) return 0
       return ((299*r + 587*g + 114*b) / 1000 < lumamax) ? 1 : 0
     }
     {
