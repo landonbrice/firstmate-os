@@ -826,6 +826,26 @@ The current pending-composer ring contract is owned by `bin/fm-task-inbox-lib.sh
 Kimi was not installed on the verification machine; its receive path is the same one-line-plus-shell contract, and the portable ladder and enqueue regressions in `tests/fm-task-inbox.test.sh` and `tests/fm-send-inbox.test.sh` cover every harness-independent half.
 This guard is the refresh command after any harness upgrade; it spends a small number of real tokens per installed harness, reports an absent harness explicitly, and refuses a run that verified nothing.
 
+## Claude background primary reset
+
+The primary reset in `bin/fm-context-check.sh --primary` and `--clear-primary` reads four Claude-emitted signals: `claude agents --json` mapping the session-lock pid to a `kind=background` entry with `id`, `sessionId`, `cwd`, and `status`; `origin.kind=human` on typed user records; `/clear` typed through `claude attach` rotating the `sessionId` under the same background id; and a doorbell typed the same way arriving as an `origin.kind=human` record that the check must exclude.
+Verified on 2026-09-26 against Claude Code 2.1.283 on macOS arm64, on a disposable haiku background session in a trusted task worktree:
+
+```sh
+FM_PRIMARY_CLEAR_LIVE_E2E=1 tests/fm-context-check-primary-live-e2e.test.sh
+```
+
+```text
+ok - claude agents --json maps the lock pid to an idle background session
+ok - the check measures the session and reads the captain's typed prompt
+ok - /clear typed through claude attach rotates the session
+ok - the resume doorbell reaches the fresh conversation and verifies as Firstmate input
+```
+
+A second `claude attach` client held open on the same session during the clear stayed attached and rendered both the typed prompt and `/clear`.
+Typed `/clear`, `/model`, and `/compact` records carry no `origin` (the `/model` and `/compact` records observed in the live primary's Claude Code 2.1.282 transcript), so they never count as captain messages.
+This guard is the refresh command after a Claude Code upgrade; it spends a few haiku turns and needs the worktree to be a trusted Claude workspace.
+
 ## Gemini
 
 The Gemini crewmate adapter was verified on 2026-09-04 with gemini-cli 0.58.0 on Linux, Node v24.20.0, tmux 3.4.
