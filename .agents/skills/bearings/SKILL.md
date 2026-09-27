@@ -114,6 +114,7 @@ Compose the payload from the same snapshot with the same ranking judgment as the
   Follow `bin/fm-bearings-board.sh`'s payload contract for the accepted format.
   Omit it or pass null for a row with no durable filed date - the main-inventory or return-catchup warning, an unavailable secondmate home, or a queued row filed before dates were recorded - and the board keeps those rows in payload order after every dated row.
 - Every Captain's Call item and every Underway, Recently Landed, and Charted Next row carries an explicit `repo` field. Fill it from the snapshot and task records wherever known; use null or an empty string only as the deliberate genuinely-no-repo marker, in which case the template may show the internal id. Ids otherwise stay in the payload only as the routing channel, and composed reasons name blockers in plain words.
+- Include the optional `spend` field by embedding the output of `bin/fm-spend-report.sh --json` verbatim; omit it when that command fails.
 
 Run `build` once after composing the payload.
 Its serve-first sequence publishes the board, establishes and verifies its Lavish session with `lavish-axi`, reopens an ended session when necessary, and only then binds the answer source and proves a live polling listener; use the session URL it prints in the chat digest.

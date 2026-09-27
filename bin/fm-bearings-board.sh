@@ -79,6 +79,10 @@
 # first; a row with no comparable date keeps its payload order after every dated
 # row. Anything else in that field refuses rather than sorting on garbage.
 #
+# `spend` is an OPTIONAL fm-spend-report.v1 object, the output of
+# `bin/fm-spend-report.sh --json`; the template shows it as a compact Spend
+# section when present, and a malformed one refuses like any other field.
+#
 # The board path is stable - $FM_HOME/.lavish/bearings-board.html - so a
 # re-invocation rebuilds the same file in place, which keeps the same Lavish
 # session URL and the same canonical process-event source id. Injection escapes
@@ -184,6 +188,17 @@ validate_payload() {  # <data.json>
       and ((has("kind") | not) or (.kind == "queued" or .kind == "warning"))
       and optional_filed
       and (if .kind == "warning" then .dispatchable == false else true end);
+    def count: type == "number" and . >= 0;
+    def spend_row:
+      type == "object"
+      and (.kind | nonempty_string) and (.model | nonempty_string) and (.trigger | nonempty_string)
+      and (.calls | count) and (.context_tokens | count) and (.output_tokens | count) and (.usd | count);
+    def spend_report:
+      type == "object"
+      and (.window | type == "object" and (.from | nonempty_string) and (.to | nonempty_string))
+      and (.rows | type == "array") and ([.rows[] | spend_row] | all)
+      and (.totals | type == "object" and (.context_tokens | count) and (.usd | count))
+      and ((has("unmeasured") | not) or (.unmeasured | type == "object"));
     type == "object"
     and (.schema == $schema)
     and (.home | nonempty_string)
@@ -197,6 +212,7 @@ validate_payload() {  # <data.json>
       or ((.charted_more | type == "number") and (.charted_more >= 0) and (.charted_more | floor == .)))
     and ((has("charted_warning_more") | not)
       or ((.charted_warning_more | type == "number") and (.charted_warning_more >= 0) and (.charted_warning_more | floor == .)))
+    and ((has("spend") | not) or (.spend | spend_report))
     and ([.captains_call[] | call_item] | all)
     and ([.underway[] | underway_item] | all)
     and ([.landed[] | landed_item] | all)
