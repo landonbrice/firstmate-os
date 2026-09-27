@@ -1217,6 +1217,8 @@ test_claude_firstmate_repo_worker_excludes_the_supervisor_contract() {
       "firstmate-repo $kind launch did not exclude both CLAUDE.md and AGENTS.md"
     assert_contains "$launch" "--settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false},\"claudeMdExcludes\"" \
       "firstmate-repo $kind launch lost or reordered the existing settings keys"
+    assert_contains "$launch" "\"claudeMdExcludes\":[\"$WT_DIR/CLAUDE.md\",\"$WT_DIR/AGENTS.md\"]}' --strict-mcp-config" \
+      "firstmate-repo $kind launch did not carry --strict-mcp-config after the intact settings JSON"
   done
   pass "a claude worker on the Firstmate repo excludes both CLAUDE.md and AGENTS.md and keeps its settings keys"
 }
@@ -1233,6 +1235,7 @@ test_claude_other_project_and_secondmate_launch_carry_no_excludes() {
   status=$?
   expect_code 0 "$status" "other-project claude spawn should succeed"$'\n'"$out"
   assert_not_contains "$(cat "$LAUNCH_LOG")" "claudeMdExcludes" "another project's worker received the exclude"
+  assert_not_contains "$(cat "$LAUNCH_LOG")" "strict-mcp-config" "another project's worker received --strict-mcp-config"
 
   id=profile-claudemd-sm-z32
   rec=$(make_spawn_case profile-claudemd-sm claude "$id")
@@ -1247,6 +1250,7 @@ test_claude_other_project_and_secondmate_launch_carry_no_excludes() {
   status=$?
   expect_code 0 "$status" "secondmate claude spawn should succeed"$'\n'"$out"
   assert_not_contains "$(cat "$LAUNCH_LOG")" "claudeMdExcludes" "a secondmate received the exclude"
+  assert_contains "$(cat "$LAUNCH_LOG")" "sessionUrl\":false}}' --strict-mcp-config" "a secondmate launch lacks --strict-mcp-config"
   pass "another project's worker and a secondmate launch carry no claudeMdExcludes"
 }
 
