@@ -997,7 +997,7 @@ test_claude_forwards_firstmate_config_dir_when_set() {
   status=$?
   expect_code 0 "$status" "claude spawn with CLAUDE_CONFIG_DIR set should succeed"
   launch=$(cat "$LAUNCH_LOG")
-  assert_contains "$launch" "CLAUDE_CONFIG_DIR='$CASE_DIR/claude-work' env -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u GEMINI_CLI CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_SEND_FEEDBACK=0 claude --dangerously-skip-permissions --settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false}}'" \
+  assert_contains "$launch" "CLAUDE_CONFIG_DIR='$CASE_DIR/claude-work' env -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u GEMINI_CLI CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_SEND_FEEDBACK=0 claude --dangerously-skip-permissions --settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false},\"skipDangerousModePermissionPrompt\":true}' --strict-mcp-config --setting-sources project,local" \
     "claude launch did not forward firstmate's CLAUDE_CONFIG_DIR to the crewmate pane"
   pass "claude forwards firstmate's CLAUDE_CONFIG_DIR so the crewmate uses the same credential store"
 }
@@ -1217,7 +1217,7 @@ test_claude_firstmate_repo_worker_excludes_the_supervisor_contract() {
       "firstmate-repo $kind launch did not exclude both CLAUDE.md and AGENTS.md"
     assert_contains "$launch" "--settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false},\"claudeMdExcludes\"" \
       "firstmate-repo $kind launch lost or reordered the existing settings keys"
-    assert_contains "$launch" "\"claudeMdExcludes\":[\"$WT_DIR/CLAUDE.md\",\"$WT_DIR/AGENTS.md\"]}' --strict-mcp-config" \
+    assert_contains "$launch" "\"claudeMdExcludes\":[\"$WT_DIR/CLAUDE.md\",\"$WT_DIR/AGENTS.md\"],\"skipDangerousModePermissionPrompt\":true}' --strict-mcp-config --setting-sources project,local" \
       "firstmate-repo $kind launch did not carry --strict-mcp-config after the intact settings JSON"
   done
   pass "a claude worker on the Firstmate repo excludes both CLAUDE.md and AGENTS.md and keeps its settings keys"
@@ -1235,7 +1235,7 @@ test_claude_other_project_and_secondmate_launch_carry_no_excludes() {
   status=$?
   expect_code 0 "$status" "other-project claude spawn should succeed"$'\n'"$out"
   assert_not_contains "$(cat "$LAUNCH_LOG")" "claudeMdExcludes" "another project's worker received the exclude"
-  assert_not_contains "$(cat "$LAUNCH_LOG")" "strict-mcp-config" "another project's worker received --strict-mcp-config"
+  assert_contains "$(cat "$LAUNCH_LOG")" "--strict-mcp-config --setting-sources project,local" "another project's worker lacks the lean flags"
 
   id=profile-claudemd-sm-z32
   rec=$(make_spawn_case profile-claudemd-sm claude "$id")
@@ -1250,9 +1250,89 @@ test_claude_other_project_and_secondmate_launch_carry_no_excludes() {
   status=$?
   expect_code 0 "$status" "secondmate claude spawn should succeed"$'\n'"$out"
   assert_not_contains "$(cat "$LAUNCH_LOG")" "claudeMdExcludes" "a secondmate received the exclude"
-  assert_contains "$(cat "$LAUNCH_LOG")" "sessionUrl\":false}}' --strict-mcp-config" "a secondmate launch lacks --strict-mcp-config"
+  assert_contains "$(cat "$LAUNCH_LOG")" "sessionUrl\":false},\"skipDangerousModePermissionPrompt\":true}' --strict-mcp-config --setting-sources project,local" "a secondmate launch lacks --strict-mcp-config"
   pass "another project's worker and a secondmate launch carry no claudeMdExcludes"
 }
+
+# Seed the throwaway user home fm_test_run_spawn runs under with the user-level
+# pieces a lean launch re-supplies: the herdr SessionStart hook and the
+# no-mistakes skill.
+seed_user_claude_home() {  # <home-dir>
+  local ud=$1/user-home/.claude
+  mkdir -p "$ud/skills/no-mistakes"
+  printf 'user no-mistakes skill\n' > "$ud/skills/no-mistakes/SKILL.md"
+  cat > "$ud/settings.json" <<'JSON'
+{"hooks":{"SessionStart":[
+{"matcher":"","hooks":[{"type":"command","command":"gh-axi","timeout":10}]},
+{"matcher":"^(startup|resume|clear|compact|fork)$","hooks":[{"type":"command","command":"bash '/u/.claude/hooks/herdr-agent-state.sh' session","timeout":10}]}]}}
+JSON
+}
+
+HERDR_HOOK_SETTINGS="\"hooks\":{\"SessionStart\":[{\"matcher\":\"^(startup|resume|clear|compact|fork)\$\",\"hooks\":[{\"type\":\"command\",\"command\":\"bash '\\''/u/.claude/hooks/herdr-agent-state.sh'\\'' session\",\"timeout\":10}]}]}"
+
+test_claude_lean_launch_merges_settings_and_links_no_mistakes_skill() {
+  local rec id out status launch kind sm excl
+  for kind in cimarron-ship firstmate-scout secondmate; do
+    id=profile-lean-$kind-z40
+    rec=$(make_spawn_case profile-lean-$kind claude "$id")
+    read_case_record "$rec"
+    seed_user_claude_home "$HOME_DIR"
+    case "$kind" in
+    cimarron-ship)
+      printf '# Cimarron\n' > "$PROJ_DIR/AGENTS.md"
+      commit_worktree_files "$PROJ_DIR"
+      out=$(run_ship_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$PROJ_DIR")
+      ;;
+    firstmate-scout)
+      make_firstmate_like_worktree "$PROJ_DIR"
+      out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$PROJ_DIR" --scout)
+      ;;
+    secondmate)
+      sm="$CASE_DIR/secondmate-home"
+      make_seeded_secondmate_home "$sm" "$id"
+      mkdir -p "$sm/bin"
+      : > "$sm/bin/fm-spawn.sh"
+      printf '@AGENTS.md\n' > "$sm/CLAUDE.md"
+      out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$sm" --secondmate)
+      WT_DIR=$sm
+      ;;
+    esac
+    launch=$(cat "$LAUNCH_LOG")
+    excl=
+    [ "$kind" != firstmate-scout ] || excl=",\"claudeMdExcludes\":[\"$WT_DIR/CLAUDE.md\",\"$WT_DIR/AGENTS.md\"]"
+    assert_contains "$launch" "--settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false}$excl,\"skipDangerousModePermissionPrompt\":true,$HERDR_HOOK_SETTINGS}' --strict-mcp-config --setting-sources project,local" \
+      "$kind launch lost a lean flag or the merged settings: $out"
+    assert_not_contains "$launch" "gh-axi" "$kind launch carried a user hook other than the herdr one"
+    [ -L "$WT_DIR/.claude/skills/no-mistakes" ] || [ -L "$WT_DIR/.agents/skills/no-mistakes" ] ||
+      fail "$kind: no-mistakes skill link missing"
+    [ -f "$WT_DIR/.claude/skills/no-mistakes/SKILL.md" ] || fail "$kind: linked skill does not resolve"
+    git -C "$WT_DIR" check-ignore -q .claude/skills/no-mistakes ||
+      ! git -C "$WT_DIR" status --porcelain --untracked-files=all | grep -q no-mistakes ||
+      fail "$kind: no-mistakes link is not excluded from git status"
+    [ ! -e "$WT_DIR/.gitignore" ] || assert_not_contains "$(cat "$WT_DIR/.gitignore")" "skills/no-mistakes" "$kind: link was added to .gitignore"
+  done
+  pass "claude ship, scout and secondmate launches carry the lean flags, merged settings and an excluded no-mistakes skill link"
+}
+
+test_claude_lean_launch_omits_absent_herdr_hook_and_keeps_project_skill() {
+  local rec id out status launch
+  id=profile-lean-nohook-z41
+  rec=$(make_spawn_case profile-lean-nohook claude "$id")
+  read_case_record "$rec"
+  mkdir -p "$PROJ_DIR/.claude/skills/no-mistakes"
+  printf 'project skill\n' > "$PROJ_DIR/.claude/skills/no-mistakes/SKILL.md"
+  commit_worktree_files "$PROJ_DIR"
+  out=$(run_ship_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$PROJ_DIR")
+  status=$?
+  expect_code 0 "$status" "lean spawn without a user hook should succeed"$'\n'"$out"
+  launch=$(cat "$LAUNCH_LOG")
+  assert_contains "$launch" "\"sessionUrl\":false},\"skipDangerousModePermissionPrompt\":true}' --strict-mcp-config --setting-sources project,local" \
+    "absent user settings should leave the herdr hook out"
+  assert_not_contains "$launch" "SessionStart" "an absent herdr hook was invented"
+  [ ! -L "$WT_DIR/.claude/skills/no-mistakes" ] || fail "a project-provided no-mistakes skill was replaced by a link"
+  pass "lean launch omits a herdr hook the user does not register and keeps a project's own no-mistakes skill"
+}
+
 
 test_active_dispatch_profile_does_not_block_secondmate_launch() {
   local rec id sm out status
@@ -1590,7 +1670,7 @@ claude_expected_launch() {  # <launch> <home> <id> <permission-flag>
   [ "$(printf '%s' "$doorbell" | "$ROOT/bin/fm-operational-input.sh" doorbell-kind)" = launch-brief ] \
     || doorbell="not a launch-brief doorbell"
   quoted="'$(printf '%s' "$doorbell" | sed "s/'/'\\\\''/g")'"
-  printf '%s' "export COMPACT_ADVISER_DISABLE=1; $(ai_trailer_hooks_prefix "$2" "$3")env -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u GEMINI_CLI CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_SEND_FEEDBACK=0 claude $4 --settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false}}' $CLAUDE_CONTROL_CHANNEL_FLAG $quoted"
+  printf '%s' "export COMPACT_ADVISER_DISABLE=1; $(ai_trailer_hooks_prefix "$2" "$3")env -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u GEMINI_CLI CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_SEND_FEEDBACK=0 claude $4 --settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false},\"skipDangerousModePermissionPrompt\":true}' --strict-mcp-config --setting-sources project,local $CLAUDE_CONTROL_CHANNEL_FLAG $quoted"
 }
 
 test_claude_permission_mode_bypass_matches_absent_launch() {
@@ -1733,6 +1813,8 @@ test_claude_crewmate_launch_carries_the_attribution_policy
 test_claude_secondmate_launch_carries_the_attribution_policy
 test_claude_firstmate_repo_worker_excludes_the_supervisor_contract
 test_claude_other_project_and_secondmate_launch_carry_no_excludes
+test_claude_lean_launch_merges_settings_and_links_no_mistakes_skill
+test_claude_lean_launch_omits_absent_herdr_hook_and_keeps_project_skill
 test_active_dispatch_profile_does_not_block_secondmate_launch
 
 echo "# all fm-spawn-dispatch-profile tests passed"
