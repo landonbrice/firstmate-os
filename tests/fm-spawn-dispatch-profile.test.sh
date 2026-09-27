@@ -1307,7 +1307,7 @@ test_claude_lean_launch_merges_settings_and_links_no_mistakes_skill() {
       fail "$kind: no-mistakes skill link missing"
     [ -f "$WT_DIR/.claude/skills/no-mistakes/SKILL.md" ] || fail "$kind: linked skill does not resolve"
     git -C "$WT_DIR" check-ignore -q .claude/skills/no-mistakes ||
-      [ -z "$(git -C "$WT_DIR" status --porcelain --untracked-files=all | grep no-mistakes)" ] ||
+      ! git -C "$WT_DIR" status --porcelain --untracked-files=all | grep -q no-mistakes ||
       fail "$kind: no-mistakes link is not excluded from git status"
     [ ! -e "$WT_DIR/.gitignore" ] || assert_not_contains "$(cat "$WT_DIR/.gitignore")" "skills/no-mistakes" "$kind: link was added to .gitignore"
   done
