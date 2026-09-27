@@ -5121,7 +5121,7 @@ test_send_text_submit_three_paste_placeholders_submit_the_long_payload() {
 # the prompt row, and ghost stripping must not strip the syntax-highlighted command.
 test_send_text_submit_claude_slash_command_with_popup_submits_whole() {
   local dir log resp fb out enter_count text fixture n
-  dir="$TMP_ROOT/submit-claude-slash-popup"; mkdir -p "$dir/responses"; log="$dir/log"; resp="$dir/responses"; : > "$log"
+  dir="$TMP_ROOT/submit-claude-slash-highlight-popup"; mkdir -p "$dir/responses"; log="$dir/log"; resp="$dir/responses"; : > "$log"
   text="/exit"
   printf '{"result":{"agent":{"agent_status":"idle"}}}\n' > "$resp/2.out"
   printf '{"result":{"agent":{"agent_status":"working"}}}\n' > "$resp/4.out"
