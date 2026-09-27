@@ -1743,6 +1743,86 @@ test_secondmate_ack_echo_absorbed_then_milestone_surfaced() {
   pass "an idle secondmate's acknowledgement echo is absorbed with a triage line, its later done: wakes, and the drain still presents the echo"
 }
 
+test_secondmate_self_maintenance_done_absorbed_then_real_done_surfaced() {
+  local dir state fakebin out drain_out pid
+  dir=$(make_case secondmate-self-maintenance); state="$dir/state"; fakebin="$dir/fakebin"
+  out="$dir/watch.out"; drain_out="$dir/drain.out"
+  printf 'kind=secondmate\n' > "$state/mate.meta"
+  printf 'done [key=stow]: corr=0123456789abcdef stow pass 4 complete\n' > "$state/mate.status"
+  # An idle mate has no busy evidence, so only the self-maintenance rule can
+  # absorb this done: line (done is never an ack echo by design).
+  export FM_FAKE_CREW_STATE='state: unknown · source: none · idle'
+  watch_bg "$state" "$fakebin" "$out"
+  pid=$!
+  if ! wait_poll_cycle "$state" "$pid"; then
+    reap "$pid"; fail "watcher surfaced an idle secondmate's stow receipt: $(cat "$out")"
+  fi
+  [ ! -s "$out" ] || { reap "$pid"; fail "a self-maintenance receipt printed a wake reason: $(cat "$out")"; }
+  [ ! -s "$state/.wake-queue" ] || { reap "$pid"; fail "a self-maintenance receipt enqueued a durable wake"; }
+  grep -F "absorbed self-maintenance receipt signal: $state/mate.status" "$state/.watch-triage.log" >/dev/null \
+    || { reap "$pid"; fail "the absorbed receipt left no triage-log line: $(cat "$state/.watch-triage.log" 2>/dev/null)"; }
+  # A real deliverable from the same idle mate still wakes on the next append.
+  printf 'done [key=send]: daily sent to 9 recipients\n' >> "$state/mate.status"
+  wait_for_exit "$pid" 100 || fail "watcher absorbed a secondmate done: after absorbing its stow receipt"
+  grep -F "signal: $state/mate.status" "$out" >/dev/null \
+    || fail "watcher did not print the surfaced secondmate done"
+  FM_STATE_OVERRIDE="$state" "$DRAIN" > "$drain_out" 2>/dev/null || fail "drain after the surfaced done failed"
+  sed -n '/^UNREAD STATUS/,$p' "$drain_out" | grep -F 'mate done [key=stow]: corr=0123456789abcdef stow pass 4 complete' >/dev/null \
+    || fail "the absorbed receipt was not presented in the drain's UNREAD STATUS section: $(cat "$drain_out")"
+  pass "an idle secondmate's stow-pass receipt is absorbed with a triage line, its later real done: wakes, and the drain still presents the receipt"
+}
+
+test_turn_ended_repeated_status_absorbed() {
+  local dir state fakebin out pid
+  dir=$(make_case turn-ended-repeated-status); state="$dir/state"; fakebin="$dir/fakebin"
+  out="$dir/watch.out"
+  printf 'working: upstream merge on branch, 15 conflicted files, resolving\n' > "$state/task.status"
+  # Prime the status baseline BEFORE the turn-end file exists and the watcher
+  # starts, so the first poll's batch is the bare turn-end alone - exactly the
+  # "status provably did not move this poll" shape signal_turnend_status_quiet
+  # requires - rather than a mixed first-sight batch of both files.
+  prime_status_seen "$state" "$state/task.status" || fail "could not prime the status baseline"
+  : > "$state/task.turn-ended"
+  # No running pipeline, no busy pane: the ordinary provably-working absorb
+  # cannot save this bare ping, only signal_turnend_status_quiet can - the
+  # status log did not move (only the turn-end file changed this poll) and its
+  # last line is an ordinary working: note, never captain-relevant.
+  export FM_FAKE_CREW_STATE='state: unknown · source: none · no current-state source available'
+  watch_bg "$state" "$fakebin" "$out"
+  pid=$!
+  if ! wait_poll_cycle "$state" "$pid"; then
+    reap "$pid"; fail "watcher surfaced a bare turn-end over an unchanged working: status: $(cat "$out")"
+  fi
+  [ ! -s "$out" ] || { reap "$pid"; fail "a repeated-status turn-end printed a wake reason: $(cat "$out")"; }
+  [ ! -s "$state/.wake-queue" ] || { reap "$pid"; fail "a repeated-status turn-end enqueued a durable wake"; }
+  grep -F "absorbed repeated identical status signal: $state/task.turn-ended" "$state/.watch-triage.log" >/dev/null \
+    || { reap "$pid"; fail "the absorbed turn-end left no triage-log line: $(cat "$state/.watch-triage.log" 2>/dev/null)"; }
+  reap "$pid"
+  pass "a bare turn-end ping over an unchanged non-captain-relevant status is absorbed with a triage line"
+}
+
+test_turn_ended_terminal_status_never_absorbed_as_repeated() {
+  local dir state fakebin out drain_out pid
+  dir=$(make_case turn-ended-terminal-status); state="$dir/state"; fakebin="$dir/fakebin"
+  out="$dir/watch.out"; drain_out="$dir/drain.out"
+  printf 'done: finished, nothing else pending\n' > "$state/task.status"
+  # Same baseline priming as the repeated-status case above, so this pins the
+  # never-absorb boundary on the identical bare-turn-end-only batch shape.
+  prime_status_seen "$state" "$state/task.status" || fail "could not prime the status baseline"
+  : > "$state/task.turn-ended"
+  export FM_FAKE_CREW_STATE='state: unknown · source: none · no current-state source available'
+  watch_bg "$state" "$fakebin" "$out"
+  pid=$!
+  wait_for_exit "$pid" 100 \
+    || fail "watcher absorbed a bare turn-end over a terminal done: status (should always surface)"
+  grep -F "signal: $state/task.turn-ended" "$out" >/dev/null \
+    || fail "watcher did not print the surfaced turn-end signal"
+  FM_STATE_OVERRIDE="$state" "$DRAIN" > "$drain_out" 2>/dev/null || fail "drain after the surfaced terminal turn-end failed"
+  grep "$(printf '\tsignal\t')" "$drain_out" | grep -F "$state/task.turn-ended" >/dev/null \
+    || fail "surfaced terminal turn-end was not queued"
+  pass "a bare turn-end ping over an unchanged terminal (done:) status always surfaces, never absorbed as repeated"
+}
+
 test_secondmate_buried_block_wakes_despite_busy_agent() {
   local dir state fakebin out suffix pid
   for suffix in '' 'note: unrelated progress' 'resolved [key=other]: unrelated answer'; do
@@ -6733,6 +6813,9 @@ test_turn_ended_surfaced_batch_opens_no_partial_deadline
 test_working_note_not_working_surfaced
 test_secondmate_status_note_surfaced_despite_busy_agent
 test_secondmate_ack_echo_absorbed_then_milestone_surfaced
+test_secondmate_self_maintenance_done_absorbed_then_real_done_surfaced
+test_turn_ended_repeated_status_absorbed
+test_turn_ended_terminal_status_never_absorbed_as_repeated
 test_secondmate_routine_progress_absorbed_then_note_surfaced
 test_secondmate_buried_block_wakes_despite_busy_agent
 test_self_announced_close_does_not_rewake_but_next_note_does

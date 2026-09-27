@@ -80,6 +80,34 @@ test_milestones_are_never_echoes() {
   pass "terminal verbs, URLs, asks, failures, shouting, long leads, and continuation prose are never echoes"
 }
 
+test_self_maintenance_done_shapes() {
+  local line
+  for line in \
+      "done [key=stow-pass4-0926]: corr=$CORR stow pass 4 complete. Budget 7500: 7432 -> 7421 est tokens" \
+      "done: stow pass 1 complete, nothing else to report" \
+      "done [key=stow]: corr=$CORR stow pass 12 complete"; do
+    status_line_is_self_maintenance_done "$line" \
+      || fail "self-maintenance receipt not recognized: $line"
+  done
+  pass "a stow-pass completion is recognized as a self-maintenance receipt"
+}
+
+test_self_maintenance_done_never_widens_to_other_done_lines() {
+  local line
+  for line in \
+      "done [key=send]: corr=$CORR relayed and sent" \
+      "done: PR https://github.com/o/r/pull/9 opened" \
+      "done [key=k]: corr=$CORR stow pass 4 complete; approval pending" \
+      "done [key=k]: corr=$CORR STOW PASS 4 COMPLETE, READ THIS NOW" \
+      "working [key=k]: corr=$CORR stow pass 4 complete" \
+      "resolved [key=k]: stow pass 4 complete" \
+      "done [key=k]: corr=$CORR memory tidy done, unrelated to stow"; do
+    ! status_line_is_self_maintenance_done "$line" \
+      || fail "a real deliverable or a non-stow done: line was classified as self-maintenance: $line"
+  done
+  pass "only the exact stow-pass-complete shape counts, on the done: verb only"
+}
+
 test_span_absorbs_only_all_echo_secondmate_spans() {
   local dir state
   dir="$TMP_ROOT/span"; state="$dir/state"; mkdir -p "$state"
@@ -109,6 +137,28 @@ test_span_absorbs_only_all_echo_secondmate_spans() {
   pass "only a secondmate log whose whole new span is echoes is absorbable"
 }
 
+test_span_absorbs_only_all_self_maintenance_secondmate_spans() {
+  local dir state
+  dir="$TMP_ROOT/span-stow"; state="$dir/span-stow-state"; mkdir -p "$state"
+  printf 'kind=secondmate\n' > "$state/mate.meta"
+  printf 'kind=ship\n' > "$state/crew.meta"
+  printf 'done [key=stow]: corr=%s stow pass 4 complete\n' "$CORR" > "$state/mate.status"
+  signal_self_maintenance_done_only "$state/mate.status" \
+    || fail "an all-self-maintenance secondmate span was not absorbable"
+  printf 'done [key=send]: relayed and sent\n' >> "$state/mate.status"
+  ! signal_self_maintenance_done_only "$state/mate.status" \
+    || fail "a secondmate span mixing a real done: with a stow receipt was absorbable"
+  printf 'working [key=a]: corr=%s option 1 relayed to the worker\n' "$CORR" > "$state/mate.status"
+  ! signal_self_maintenance_done_only "$state/mate.status" \
+    || fail "an ordinary ack echo (working:) was absorbed by the self-maintenance rule"
+  printf 'done [key=stow]: corr=%s stow pass 4 complete\n' "$CORR" > "$state/crew.status"
+  ! signal_self_maintenance_done_only "$state/crew.status" \
+    || fail "the self-maintenance rule leaked onto an ordinary crewmate log"
+  ! signal_self_maintenance_done_only \
+    || fail "an empty batch was absorbable"
+  pass "only a secondmate log whose whole new span is self-maintenance receipts is absorbable"
+}
+
 test_unread_surface_admits_secondmate_echoes_only() {
   local echo_line="working [key=a]: corr=$CORR option 1 relayed to the worker"
   status_line_is_unread_surface "$echo_line" secondmate \
@@ -120,6 +170,17 @@ test_unread_surface_admits_secondmate_echoes_only() {
   status_line_is_unread_surface 'note: still presented' ship \
     || fail "a note: line lost its unread presentation"
   pass "the unread status surface adds secondmate echoes without widening other kinds"
+}
+
+test_unread_surface_admits_secondmate_self_maintenance_receipts_only() {
+  local receipt="done [key=stow]: corr=$CORR stow pass 4 complete"
+  status_line_is_unread_surface "$receipt" secondmate \
+    || fail "a secondmate self-maintenance receipt is not presented as unread status"
+  ! status_line_is_unread_surface "$receipt" ship \
+    || fail "an ordinary crewmate's stow-shaped done: joined the unread status surface"
+  ! status_line_is_unread_surface "$receipt" \
+    || fail "a kind-less receipt joined the unread status surface"
+  pass "the unread status surface adds secondmate self-maintenance receipts without widening other kinds"
 }
 
 # The watcher's signal decision for one append on an idle mate: today's rule
@@ -196,6 +257,10 @@ test_replay_real_secondmate_log() {
 
 test_ack_echo_shapes
 test_milestones_are_never_echoes
+test_self_maintenance_done_shapes
+test_self_maintenance_done_never_widens_to_other_done_lines
 test_span_absorbs_only_all_echo_secondmate_spans
+test_span_absorbs_only_all_self_maintenance_secondmate_spans
 test_unread_surface_admits_secondmate_echoes_only
+test_unread_surface_admits_secondmate_self_maintenance_receipts_only
 test_replay_real_secondmate_log

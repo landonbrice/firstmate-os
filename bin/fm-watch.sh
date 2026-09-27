@@ -3016,11 +3016,32 @@ EOF
     # A secondmate log whose new lines only acknowledge the parent's own
     # instruction (fm-classify-lib.sh's status_line_is_ack_echo owns the rule) is
     # absorbed without either busy proof; the next drain's UNREAD STATUS section
-    # still presents each absorbed line.
+    # still presents each absorbed line. Two more no-either-busy-proof absorb
+    # rules sit alongside it, tried in order and each scoped to a batch its own
+    # function alone can prove benign (a mixed batch always falls through to the
+    # ordinary busy-proof path below): a secondmate's own self-maintenance
+    # receipt (signal_self_maintenance_done_only, e.g. a stow-pass done: line),
+    # and a bare turn-ended ping whose task's status did not move
+    # (signal_turnend_status_quiet). The self-maintenance check deliberately
+    # does NOT gate on signal_actionable: a done: line is captain-relevant by
+    # the ordinary span classifier (that rule is why it always used to wake),
+    # so signal_actionable is 0 for exactly the batches this rule exists to
+    # override; signal_self_maintenance_done_only itself is the narrow proof
+    # that makes the override safe, not the actionable check.
     signal_absorb_label=benign
     # shellcheck disable=SC2086  # same space-separated status-path list
     if ! afk_present && [ "$signal_actionable" -ne 0 ] && signal_secondmate_echoes_only $files; then
       signal_absorb_label='acknowledgement echo'
+    fi
+    # shellcheck disable=SC2086  # same space-separated status-path list
+    if [ "$signal_absorb_label" = benign ] && ! afk_present \
+      && signal_self_maintenance_done_only $files; then
+      signal_absorb_label='self-maintenance receipt'
+    fi
+    # shellcheck disable=SC2086  # same space-separated status-path list
+    if [ "$signal_absorb_label" = benign ] && ! afk_present && [ "$signal_actionable" -ne 0 ] \
+      && signal_turnend_status_quiet $files; then
+      signal_absorb_label='repeated identical status'
     fi
     # shellcheck disable=SC2086  # same space-separated status-path list
     if [ "$signal_absorb_label" = benign ] && { afk_present || [ "$signal_actionable" -eq 0 ] \
