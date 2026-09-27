@@ -152,6 +152,7 @@ a { color: inherit; text-decoration: none; }
 .bb-stat__label { font-family: var(--font-mono); font-size: var(--fs-2xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
 
 .bb-section { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.bb-section[hidden] { display: none; }
 .bb-section__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .bb-cols { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 22px; }
 
@@ -364,6 +365,14 @@ a { color: inherit; text-decoration: none; }
       <div class="fm-card"><div class="bb-rows" id="bb-landed"></div></div>
     </section>
   </div>
+
+  <section class="bb-section" id="bb-spend-section" hidden>
+    <div class="bb-section__head">
+      <span class="fm-sign fm-sign--eyebrow">Spend</span>
+      <span class="fm-sign fm-sign--muted" id="bb-spend-sub"></span>
+    </div>
+    <div class="fm-card"><div class="bb-rows" id="bb-spend"></div></div>
+  </section>
 
   <footer class="bb-foot">
     <span class="bb-meta-mono" id="bb-provenance">-</span>
@@ -658,6 +667,26 @@ __FM_BEARINGS_BOARD_DATA__
     }
     ld.appendChild(row);
   });
+
+  /* Spend (optional): list-price dollars, raw context tokens */
+  if (data.spend) {
+    document.getElementById("bb-spend-section").hidden = false;
+    var sp = document.getElementById("bb-spend");
+    var unm = Object.keys(data.spend.unmeasured || {}).map(function (k) { return k + " unmeasured"; });
+    document.getElementById("bb-spend-sub").textContent =
+      data.spend.window.from + " to " + data.spend.window.to + " UTC · $" + data.spend.totals.usd.toFixed(2) +
+      " list · " + (data.spend.totals.context_tokens / 1e6).toFixed(1) + "M ctx tokens" + (unm.length ? " · " + unm.join(", ") : "");
+    if (!data.spend.rows.length) sp.appendChild(el("div", "bb-empty", "No measured Claude calls in the window."));
+    data.spend.rows.forEach(function (r) {
+      var row = el("div", "bb-row");
+      var main = el("div", "bb-row__main");
+      main.appendChild(el("div", "bb-row__title", r.kind + " · " + r.trigger));
+      main.appendChild(el("div", "bb-row__sub", r.model + " · " + r.calls + " calls · " + (r.context_tokens / 1e6).toFixed(2) + "M ctx · " + r.output_tokens + " out"));
+      row.appendChild(main);
+      row.appendChild(el("span", "bb-row__pr", "$" + r.usd.toFixed(2)));
+      sp.appendChild(row);
+    });
+  }
 
   /* Charted Next + dispatch picker */
   var ch = document.getElementById("bb-charted");

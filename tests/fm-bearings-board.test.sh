@@ -769,7 +769,26 @@ test_build_refuses_a_nondecision_reconcile_value() {
   pass "build reserves reconcile across non-decision cards"
 }
 
+test_spend_field_is_optional_validated_and_injected() {
+  local home data out rc
+  home=$(make_home spend)
+  data="$home/data.json"
+  write_valid_payload "$data"
+  jq '.spend = {"schema":"fm-spend-report.v1","window":{"from":"2026-09-25T00:00","to":"2026-09-26T00:00"},
+    "rows":[{"kind":"primary","model":"claude-fable-5-1","trigger":"captain","turns":1,"calls":2,"context_tokens":1000,"output_tokens":10,"usd":1.5}],
+    "totals":{"calls":2,"context_tokens":1000,"output_tokens":10,"usd":1.5},"unmeasured":{"codex":3}}' "$data" > "$data.tmp" \
+    && mv "$data.tmp" "$data"
+  out=$(run_board "$home" build "$data" 2>&1) || fail "a payload with a valid spend field was refused: $out"
+  [ "$(extract_payload "$home/.lavish/bearings-board.html" | jq -r '.spend.rows[0].model')" = claude-fable-5-1 ] \
+    || fail "the spend field did not round-trip through the built page"
+  jq '.spend.rows[0].usd = "1.5"' "$data" > "$data.tmp" && mv "$data.tmp" "$data"
+  set +e; out=$(run_board "$home" build "$data" 2>&1); rc=$?; set -e
+  [ "$rc" -ne 0 ] || fail "a spend row with a non-numeric usd was accepted"
+  pass "spend field is optional, validated and injected"
+}
+
 test_path_is_stable_and_home_scoped
+test_spend_field_is_optional_validated_and_injected
 test_build_refuses_malformed_payloads_before_touching_the_board
 test_charted_kind_is_optional_and_accepts_both_values
 test_build_injects_binds_then_arms
