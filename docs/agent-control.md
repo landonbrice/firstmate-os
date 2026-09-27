@@ -201,9 +201,36 @@ On a `context-high` wake, firstmate performs the reset by hand:
 
 The stow-then-relaunch sequence is deliberately not automated.
 
+## Context reset for the primary
+
+The primary cannot relaunch itself through `bin/fm-control.sh`, so its reset clears the conversation in place instead, and the session-start re-emit that `/clear` already triggers restores durable state.
+It is supported only when the primary is a Claude Code background session (`claude --bg`); for any other primary the check stays silent and the captain clears by hand.
+`bin/fm-context-check.sh --primary [--threshold N] [--quiet-minutes M]` prints one `main-context-high: ...` line only when every gate below passes, and nothing otherwise:
+
+- the primary's current per-call context is over the threshold (default 200000), read from the transcript of the session that `claude agents --json` maps to the pid on line 1 of `state/.lock`;
+- the last captain message is at least M minutes old (default 30), where a captain message is a transcript record with `origin.kind=human` that is not a verified Firstmate operational doorbell, and the session's first record stands in when there is none;
+- neither `state/.afk` nor `state/.afk-contract` exists, so away and quiet mode never reset;
+- `state/.wake-queue` is empty, so no wake is unacknowledged;
+- no earlier line fired within the last hour.
+
+To have the watcher run it, write `state/primary-context.check.sh` as a mode-0700 file containing `exec /path/to/firstmate/bin/fm-context-check.sh --primary`, then bind it with `bin/fm-check-register.sh primary-context`.
+
+On a `main-context-high` wake, the primary resets itself automatically, without asking the captain:
+
+1. If a captain decision is still open in this conversation, leave it; the line fires again after an hour.
+2. Run `/stow`.
+3. Only when its receipt says reset-safe, run `bin/fm-context-check.sh --clear-primary` and end the turn.
+
+`--clear-primary` refuses unless a line fired in the last two hours and every gate still passes.
+It then forks a detached clearer and returns at once.
+The clearer waits up to 15 minutes for `claude agents --json` to report the session idle with every gate still passing, attaches to it with `claude attach` on a private pty, types `/clear`, confirms the session id rotated, and types a record-backed `session-start` doorbell so the fresh conversation takes one turn and re-arms supervision.
+Its outcome line lands in `state/.primary-context-reset.log`.
+A captain view attached to the same session stays attached and sees the clear.
+
 ## Verification
 
 - `tests/fm-control.test.sh` - the adapter contract for its verified-harness lane (adapters outside the lane pin their control mechanics in their own harness suites), the backend capability matrix, exact-id scoping, the closed verb list, the busy, idle, dead, and idempotent lifecycle cases, and marker non-regression, all against a stubbed session provider.
 - `tests/fm-control-relaunch.test.sh` - the relaunch transaction: identity preservation, harness switching, the progress note, checkpoint refusals, rollback after a failed launch, and the endpoint-absence proof both verbs share - the Herdr reclaim of a destroyed endpoint, and tmux refusing one it cannot prove absent.
 - `tests/fm-control-herdr-smoke.test.sh` - the second state-verified backend against the real herdr binary, on an isolated throwaway lab session.
-- `tests/fm-context-check.test.sh` - the context-high check: threshold boundary, missing transcript, non-Claude harness, and the opt-in file.
+- `tests/fm-context-check.test.sh` - the context-high check (threshold boundary, missing transcript, non-Claude harness, the opt-in file) and the primary reset: threshold, the 30-minute captain quiet gate, doorbell exclusion, the away, wake-queue, non-background, and busy refusals, and the typed `/clear` plus doorbell sequence, against a stubbed `claude`.
+- `tests/fm-context-check-primary-live-e2e.test.sh` - the opt-in live guard (`FM_PRIMARY_CLEAR_LIVE_E2E=1`) that proves every Claude-emitted signal the primary reset reads on a disposable `claude --bg` session; its dated result is in [`docs/verification/runtime-backends.md`](verification/runtime-backends.md#claude-background-primary-reset).

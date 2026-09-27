@@ -354,46 +354,53 @@ def newest_files(pattern: str, cap: int = LOG_FILE_CAP) -> list[str]:
     return files[:cap]
 
 
+def claude_session_context(path: str) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """Current and peak per-call context from one Claude session log, or None without assistant usage."""
+    current = None
+    peak = 0
+    output = 0
+    model = None
+    measured_at = None
+    try:
+        handle = open(path, errors="replace")
+    except OSError:
+        return None
+    with handle:
+        for line in handle:
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            msg = obj.get("message") if isinstance(obj, dict) else None
+            if not isinstance(msg, dict) or msg.get("role") != "assistant":
+                continue
+            usage = msg.get("usage")
+            if not isinstance(usage, dict):
+                continue
+            context_tokens = sum(int(usage.get(k) or 0) for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+            current = context_tokens
+            peak = max(peak, context_tokens)
+            output += int(usage.get("output_tokens") or 0)
+            model = msg.get("model") or model
+            measured_at = to_utc(obj.get("timestamp")) or measured_at
+    if current is None:
+        return None
+    window = CLAUDE_WINDOWS.get(str(model))
+    percent = round((current / window) * 100, 1) if window else None
+    return (
+        {"current_tokens": current, "peak_tokens": peak, "window_tokens": window, "percent": percent, "session_log": path, "measured_at": measured_at or utc_now()},
+        {"total": None, "output": output},
+    )
+
+
 def claude_context(paths: list[str]) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str]:
     for base in paths:
         directory = claude_dir_for_path(base)
         for path in newest_files(str(directory / "*.jsonl")):
-            current = None
-            peak = 0
-            output = 0
-            model = None
-            measured_at = None
-            try:
-                handle = open(path, errors="replace")
-            except OSError:
+            found = claude_session_context(path)
+            if found is None:
                 continue
-            with handle:
-                for line in handle:
-                    try:
-                        obj = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    msg = obj.get("message") if isinstance(obj, dict) else None
-                    if not isinstance(msg, dict) or msg.get("role") != "assistant":
-                        continue
-                    usage = msg.get("usage")
-                    if not isinstance(usage, dict):
-                        continue
-                    context_tokens = sum(int(usage.get(k) or 0) for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
-                    current = context_tokens
-                    peak = max(peak, context_tokens)
-                    output += int(usage.get("output_tokens") or 0)
-                    model = msg.get("model") or model
-                    measured_at = to_utc(obj.get("timestamp")) or measured_at
-            if current is None:
-                continue
-            window = CLAUDE_WINDOWS.get(str(model))
-            percent = round((current / window) * 100, 1) if window else None
-            return (
-                {"current_tokens": current, "peak_tokens": peak, "window_tokens": window, "percent": percent, "session_log": path, "measured_at": measured_at or utc_now()},
-                {"total": None, "output": output},
-                "claude assistant usage in newest matching session log",
-            )
+            return found[0], found[1], "claude assistant usage in newest matching session log"
     return None, None, "no matching Claude assistant usage log"
 
 
