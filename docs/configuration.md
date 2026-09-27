@@ -729,7 +729,7 @@ rovo is likewise verified for crewmate and scout launches ONLY, refused for a se
 agy is likewise verified for crewmate and scout launches ONLY, refused for a secondmate for the same reason - no hook surface and no primary supervision protocol; [`docs/verification/agy.md`](verification/agy.md) owns that evidence, including the spawn-time worktree trust pre-registration through `bin/fm-agy-trust.sh` and Herdr's native agy pane recognition.
 devin is verified for crewmate and scout launches only; a secondmate is refused because Devin has no verified primary supervision protocol.
 
-Its private worker config disables Claude Code imports (including the captain's hooks) and Devin commit attribution without editing user or project config; [`fm-devin-config.sh`](../bin/fm-devin-config.sh) owns these enforced settings and [Devin verification](verification/devin.md) owns the live evidence and observed model availability.
+Its private worker config disables Claude Code imports (including the captain's hooks) and, unless the home sets `config/keep-ai-trailers` (see "Commit attribution"), Devin commit attribution without editing user or project config; [`fm-devin-config.sh`](../bin/fm-devin-config.sh) owns these enforced settings and [Devin verification](verification/devin.md) owns the live evidence and observed model availability.
 
 ### Verification and primary supervision
 
@@ -967,10 +967,15 @@ This applies only to agents Firstmate launches; the captain's own primary Firstm
 
 [`fm-spawn.sh --help`](../bin/fm-spawn.sh) owns the delivery mechanics, with focused regression coverage in [`tests/fm-spawn-compact-adviser-disable.test.sh`](../tests/fm-spawn-compact-adviser-disable.test.sh) and [`tests/fm-spawn-compact-adviser-disable-remote.test.sh`](../tests/fm-spawn-compact-adviser-disable-remote.test.sh).
 
-Every claude launch's inline `--settings` JSON also carries `"attribution":{"commit":"","pr":"","sessionUrl":false}`, so a spawned worker never writes a Co-Authored-By trailer, Claude-Session link, or generated-with line into a commit or PR body regardless of which settings scopes end up loaded.
-Every fleet launch, Claude included, also receives a pane-scoped `GIT_CONFIG` `core.hooksPath` pointing at `state/<id>.git-hooks`, so git's `commit-msg` hook strips known AI trailers at the commit object even when a runtime injects them after the typed message.
-`bin/fm-git-strip-ai-trailers.sh` owns the identities, the install, and chaining the hooks of whichever repository git is running in, so a project hook such as husky still runs.
-That directory is read-only, so a hook manager run inside a fleet pane (lefthook's npm postinstall, `pre-commit install`) fails instead of displacing the strip; install a project's hooks from outside the pane, where the wrappers chain them.
+### Commit attribution
+
+The optional local, gitignored `config/keep-ai-trailers` presence flag opts this home into keeping AI co-author trailers on its launched workers.
+With the flag absent, every Claude launch's inline `--settings` JSON carries `"attribution":{"commit":"","pr":"","sessionUrl":false}`, every Devin worker config sets `"attribution": false`, and every fleet launch receives a pane-scoped `GIT_CONFIG` `core.hooksPath` pointing at `state/<id>.git-hooks`, where git's `commit-msg` hook strips known AI trailers even when a runtime injects them after the typed message.
+When the flag is present, Claude launches omit those attribution-off settings, Devin worker configs keep the user config's `attribution` setting (Devin's default is on), and fleet launches do not install or select the strip hooks, so Git uses the repository's configured hooks directly.
+`bin/fm-git-strip-ai-trailers.sh` owns the identities, the install, and chaining the hooks of whichever repository git is running in, including when `git -c core.hooksPath` supplies the pane's hook override, so a project hook such as husky still runs when stripping is enabled.
+If the wrapper cannot resolve that repository's hooks directory, the git operation fails rather than silently skipping a project hook such as a pre-push guard.
+When stripping is enabled, the hooks directory is read-only, so a hook manager run inside a fleet pane (lefthook's npm postinstall, `pre-commit install`) fails instead of displacing the strip; install a project's hooks from outside the pane, where the wrappers chain them.
+The flag is a home-wide attribution choice, so it is inherited into secondmate homes under the [`secondmate-provisioning`](../.agents/skills/secondmate-provisioning/SKILL.md) inherited-local-material contract and a secondmate's own workers keep AI trailers too.
 Per-machine Cursor `cli-config.json` attribution-off is not this contract: it does not travel with Firstmate, defaults back to on when unset, and only feeds the CLI's request to the server, so it suppresses the trailer rather than preventing it.
 
 ## Crew dispatch profiles (config/crew-dispatch.json)
@@ -1062,6 +1067,7 @@ This single-provider table is separate from the frozen legacy mapping used by `f
 - `ultra` is native-only: the model-aware validation contract and launch mapping are owned by `bin/fm-harness.sh validate-native-effort` and `bin/fm-spawn.sh` respectively.
 - Codex `max` is valid when the profile selects `gpt-5.6-luna`, whose installed catalog entry supports that reasoning level.
 - An omitted model or effort means the selected harness uses its own default for that axis.
+- OpenCode receives the effort as its default `build` agent's `variant`, keyed to the resolved model, inside the `OPENCODE_CONFIG_CONTENT` JSON its launch already writes (the per-model reasoning-effort field of the config schema, verified on opencode 1.18.32); with no model resolved, the effort is recorded in task metadata but omitted from the launch.
 - Every profile array is an implicit quota-aware choice resolved through `quota-array-dispatch`.
 - If no dispatch rule fits, firstmate resolves `default` through the same object-or-array path before falling back to `config/crew-harness`.
 - Except for `ultra`, which refuses unsupported profiles under the native-effort contract above, an effort value the chosen harness does not accept is recorded as `effort=` in task meta for traceability but omitted from the launch flags.
@@ -1109,6 +1115,25 @@ When the sections are sent from a scout brief, the line `Brief kind: scout (repo
 A ship brief's delivery mode is deliberately not sent, because in live runs naming it pushed a routine ship brief toward the hardest tier (see [the verification record](verification/dispatch-resolve.md)).
 
 The scaffold's standard setup, rules, and definition-of-done text is the same in every brief, so leaving it out keeps its safety language from reading as a signal about the task.
+
+**Never-send list (config/dispatch-never-send)**
+
+The optional local, gitignored `config/dispatch-never-send` keeps values you name from ever leaving the machine in a resolver request.
+It has no default entries, and an absent file changes nothing.
+Like `config/crew-dispatch.json`, it is inherited into secondmate homes, so a secondmate's resolver withholds the same values.
+
+Each non-blank line not beginning with `#` is one literal value, matched case-insensitively.
+Every entry is trimmed of surrounding whitespace, and any run of whitespace, in the entry or in the checked text, counts as one space, so a value the brief wraps across lines still matches.
+
+```text
+# Client names
+Example Client Ltd
+```
+
+Before the request is sent, every string in it is checked: the project name, the task text, each rule's `when`, and the fixed question text.
+A match stops the request: the resolver behaves exactly as when it is off, printing one `dispatch-resolve: off (...; nothing sent)` line on stderr and nothing on stdout, making no network or quota call, and exiting 0, so firstmate dispatches through its existing intake.
+A list that is present but not a readable regular file also stops the request the same way rather than sending unchecked text.
+That one diagnostic names the list line number at most and never prints the listed value or the matching text.
 
 **Missing or invalid rules**
 
@@ -2223,6 +2248,7 @@ FM_ZELLIJ_SESSION=firstmate  # zellij-only: named session for normal backend ops
 CMUX_SOCKET_PASSWORD=   # cmux-only: socket password fallback when config/cmux-socket-password is absent (docs/cmux-backend.md)
 FM_SESSION_START_STATUS_TAIL=5   # state/*.status lines printed per task in the session-start digest; each line is capped by bin/fm-line-cap-lib.sh
 FM_SESSION_START_QUEUED_LIMIT=20   # plain queued backlog rows in the session-start digest; in-flight, held, and blocked rows are never bounded and done rows are never listed
+FM_SESSION_START_ENDPOINT_TIMEOUT=10   # seconds bounding each per-task endpoint liveness read in the session-start digest (bin/fm-session-start.sh); nonpositive or invalid values fall back to 10; a read that hits the bound or dies becomes that task's own `endpoint: error` line and the digest continues
 FM_BACKLOG_ROW_TIMEOUT_SECS=10   # seconds bounding each backlog row read (bin/fm-backlog-transition-lib.sh); nonpositive or invalid values fall back to 10; the first bound hit latches the sweep so later reads return immediately, each still naming its own item
 FM_BOOTSTRAP_DETECT_ONLY=0   # internal/read-only session-start mode: skip bootstrap's mutating sweeps and print advisory TANGLE wording
 FM_BOOTSTRAP_NETWORK=all   # internal session-start phase split: all, skip (local steps only), or only (network steps only); see bin/fm-bootstrap.sh
@@ -2306,9 +2332,10 @@ FM_WATCH_CYCLE_LOG_KEEP_LINES=1000   # newest complete lifecycle rows considered
 FM_WATCHER_STALE_GRACE=300   # defaults to FM_GUARD_GRACE if set, else the poll-derived grace (docs/turnend-guard.md "Guard grace and the poll cadence"); seconds a live watcher lock may have a stale beacon before re-arm errors
 FM_WATCHER_STALL_BOUND=       # defaults to 3x FM_WATCHER_STALE_GRACE; a live holder whose beacon is stale past this hard bound is evicted with TERM and replaced by the re-arm rather than refused (docs/turnend-guard.md, bin/fm-watch.sh header)
 FM_SIGNAL_GRACE=30      # seconds to coalesce nearby status and turn-end signals into one wake
+FM_WATCHER_CLEANUP_LOCK_BOUND=   # optional watcher EXIT marker-lock wait; default and validation: docs/watcher-continuity.md
 FM_TURNEND_CHURN_ABSORB_SECS=900   # longest one endpoint's bare turn-ends may be deferred on pane-churn evidence alone; only consulted when config/turnend-churn-absorb is present
 FM_CAPTAIN_RE='done:|needs-decision:|blocked:|failed:|PR ready|checks green|ready in branch|merged'   # captain-relevant status regex; nonterminal progress verbs remain excluded even when their prose matches
-FM_CLASSIFY_PAUSED_VERB=paused     # leading status verb for a declared external wait; excluded from FM_CAPTAIN_RE and distinct from blocked
+FM_CLASSIFY_PAUSED_VERB=paused     # leading declared-wait status verb; bin/fm-classify-lib.sh owns its meaning and legacy external-wait label; excluded from FM_CAPTAIN_RE and distinct from blocked
 FM_STALE_ESCALATE_SECS=240         # idle seconds before a provably-working stale pane escalates, unless that pane's own worker declared a wait that has not elapsed, or, where config/wedge-defer-parked-gate arms it, that pane's crew is parked at a validation gate awaiting the supervisor's decision on it that the crew raised under that run's key and nobody has answered yet, either of which takes the FM_PAUSE_RESURFACE_SECS recheck below instead; stale panes whose crew is not provably working surface immediately unless admitted directly to the declared-wait cadence, while a live idle declared wait still surfaces once before that cadence bounds repeats; at that same escalation moment a recovery-grade agent-state probe (docs/architecture.md owns that dead-record contract) reports a pane whose endpoint is proven `dead` or `missing` once and stops re-escalating it while it stays that way
 FM_BUSY_TURN_MAX_SECS=3600         # maximum age without a completed turn or explicit native-harness progress (bin/fm-watch.sh owns marker selection), before the same wedge escalation used for a provably-working non-busy stale takes over; inspection-only, never an automatic interrupt or restart; a declared external wait, an attended verified captain-held transfer, or - where config/wedge-defer-parked-gate arms it - a validation gate of the crew's own awaiting the supervisor's still-unanswered decision takes the FM_PAUSE_RESURFACE_SECS recheck below instead
 FM_PAUSE_RESURFACE_SECS=14400      # four hours between bounded rechecks of a declared external wait or verified captain-held transfer, and between repeated new-hash stale alarms for an ordinary crew task with an open backlog captain call; a structured until time can make an external-wait recheck occur sooner but cannot extend this bound; this includes a live idle pane after its first inconclusive stale wake, a provably-working pane whose own unelapsed declared wait or, where config/wedge-defer-parked-gate arms it, unanswered supervisor-owed validation gate defers its FM_STALE_ESCALATE_SECS escalation, and a live busy pane past FM_BUSY_TURN_MAX_SECS, while the away-mode daemon uses the same setting and ages its window against the crew's own latest status line rather than pane busy state; a captain-held transfer is never rechecked while the away-posture record exists, while an armed validation gate awaiting the supervisor's decision keeps this recheck in either posture
@@ -2334,7 +2361,7 @@ FM_FLEET_SYNC_PACKED_REFS_LOCK_RETRY_WAIT_SECS=1 # seconds fm-fleet-sync.sh wait
 FM_FLEET_SYNC_PACKED_REFS_LOCK_AGE_SECS=30       # min mtime age before fm-fleet-sync.sh treats a leftover packed-refs.lock as provably stale
 FM_BUSY_REGEX=          # optional override for rendered delivery guards and Grok's isolated task-state fallback; converted worker state ignores it
 FM_COMPOSER_IDLE_RE=    # optional fleet-wide idle-placeholder regex override (bin/fm-composer-lib.sh); a match alone does not prove emptiness because shape-specific position and ANSI de-emphasis safety gates still apply
-FM_COMPOSER_CAPTURE_LINES=20   # fleet-wide bound for tail-capture composer reads; tmux instead supplies its bounded visible pane, while the other adapters use this small window so stale scrollback banners stay out of the candidate set
+FM_COMPOSER_CAPTURE_LINES=20   # fleet-wide bound for tail-capture composer reads; it no longer bounds the adapter composer state/content reads on tmux or herdr, which supply their bounded visible pane instead, while the cmux, orca, and Zellij adapters use this small window so stale scrollback banners stay out of the candidate set; it still bounds the shared inbox composer read (bin/fm-task-inbox-lib.sh) on every backend, and on herdr it also floors how many Ctrl+U presses a refused leftover may take
 FM_COMPOSER_PI_MAX_LINES=8     # fleet-wide: maximum rows admitted between Pi's identity-corroborated separator pair; taller or ambiguous candidates stay unknown
 FM_COMPOSER_GHOST_LUMA_MAX=128   # fleet-wide: max perceived luminance (0.299R+0.587G+0.114B, 0-255) for a TRUECOLOR foreground to count as de-emphasised ghost/placeholder text and be stripped; dim/faint (SGR 2) is stripped regardless. Assumes a dark terminal theme (bin/fm-composer-lib.sh's fm_composer_strip_ghost, used by styled tmux, herdr, and Zellij reads)
 GROK_HOME=              # optional Grok config home for firstmate's global grok turn-end hook; defaults to ~/.grok
