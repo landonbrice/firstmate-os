@@ -378,6 +378,51 @@ status_line_is_ack_echo() {  # <status-line>
   _fm_classify_matches "$clause" "$FM_CLASSIFY_ACK_WORDS_RE"
 }
 
+# A secondmate's own periodic self-maintenance receipt (currently: a stow-pass
+# completion). Unlike the ack echo above, this is a `done:` line, and `done` is
+# deliberately never an echo (a real deliverable must always wake), so this is a
+# SEPARATE, narrower predicate scoped to exactly the one self-maintenance shape a
+# mate reports on its own schedule with no consequence for the captain: a
+# `stow pass <N> complete` receipt. bin/fm-watch.sh's signal_self_maintenance_done_only
+# absorbs a signal only when every new line of every signaled secondmate log
+# passes this check, the same way PR21's echo absorb works, and the triage log
+# and next drain's status read stay unaffected - the absorbed line is never
+# rewritten or dropped from the status file, only kept off the wake queue.
+# A line is a self-maintenance receipt only when ALL of these hold:
+#   1. its verb is exactly `done` (never a decision/failure/paused/unknown verb);
+#   2. it carries no URL (`://` anywhere), so a PR link always wakes;
+#   3. its note, after stripping leading `corr=<id>` and `[key=<slug>]` tokens,
+#      starts with `stow pass <N> complete` (FM_CLASSIFY_SELF_MAINTENANCE_DONE_RE);
+#   4. the note holds no attention marker (FM_CLASSIFY_ACK_ATTENTION_RE) and no
+#      three-word shouted run (FM_CLASSIFY_ACK_SHOUT_RE), the same guards the ack
+#      echo rule uses, so a stow receipt that also flags something never absorbs.
+# Deliberately narrow: a new self-maintenance shape is a reviewed edit to the
+# regex below, not a permissive catch-all, so this cannot grow into swallowing an
+# unrelated `done:` line.
+FM_CLASSIFY_SELF_MAINTENANCE_DONE_RE_DEFAULT='^stow pass [0-9]+ complete([^[:alnum:]]|$)'
+
+status_line_is_self_maintenance_done() {  # <status-line>
+  local line=$1 verb note word
+  [ -n "$line" ] || return 1
+  status_line_verb "$line" verb
+  case "$verb" in done) ;; *) return 1 ;; esac
+  case "$line" in *://*) return 1 ;; esac
+  note=$(status_line_note "$line")
+  while :; do
+    word=${note%%[[:space:]]*}
+    if _fm_classify_is_corr_token "$word"; then :
+    else
+      case "$word" in \[key=*\]) ;; *) break ;; esac
+    fi
+    note=${note#"$word"}
+    note=${note#"${note%%[![:space:]]*}"}
+  done
+  [ -n "$note" ] || return 1
+  _fm_classify_matches "$note" "$FM_CLASSIFY_ACK_ATTENTION_RE" && return 1
+  [[ "$note" =~ $FM_CLASSIFY_ACK_SHOUT_RE ]] && return 1
+  _fm_classify_matches "$note" "${FM_CLASSIFY_SELF_MAINTENANCE_DONE_RE:-$FM_CLASSIFY_SELF_MAINTENANCE_DONE_RE_DEFAULT}"
+}
+
 # 0 if a status line's leading verb is the pause verb (paused: <reason>). A pure
 # read of the line itself, so the daemon's classify_stale can reuse the last line
 # it already read without a fm-crew-state.sh call. Matches only the verb before the
@@ -1999,13 +2044,16 @@ status_new_lines_since_cursor() {  # <status-file> [<captured-end-offset>]
 
 # 0 when a status line is an informational `note:` or a reserved-key
 # pending-reply resolution, or, with <kind> secondmate, an acknowledgement echo
-# (status_line_is_ack_echo). Those lines never fold into OPEN DECISIONS, and the
-# watcher absorbs a secondmate's echo without a wake, so the drain's
-# unread-status surface is their only guaranteed presentation.
+# (status_line_is_ack_echo) or a self-maintenance receipt
+# (status_line_is_self_maintenance_done). Those lines never fold into OPEN
+# DECISIONS, and the watcher absorbs a secondmate's echo or receipt without a
+# wake, so the drain's unread-status surface is their only guaranteed
+# presentation.
 status_line_is_unread_surface() {  # <status-line> [<kind>]
   local line=$1 verb key note resolve held prefix
   [ -n "$line" ] || return 1
-  if [ "${2:-}" = secondmate ] && status_line_is_ack_echo "$line"; then
+  if [ "${2:-}" = secondmate ] \
+    && { status_line_is_ack_echo "$line" || status_line_is_self_maintenance_done "$line"; }; then
     return 0
   fi
   verb=$(status_line_verb "$line")
@@ -2734,13 +2782,17 @@ signal_crew_provably_working() {  # <file> ...
 }
 
 # 0 (absorb) when every file in a no-verb "signal:" wake is a kind=secondmate
-# task's .status log whose lines new since the watcher's classified position are
-# all acknowledgement echoes (status_line_is_ack_echo owns that rule); 1 when any
-# file is anything else, any span is empty or unreadable, or any new line is not
-# an echo. Uses the same classified-position source as
-# _fm_secondmate_status_new_lines_routine above.
-signal_secondmate_echoes_only() {  # <file> ...
-  local f base dir task start size chunk line seen=0
+# task's .status log whose lines new since the watcher's classified position all
+# pass <line-predicate-fn> (a status_line_is_* function taking one status-line
+# argument); 1 when any file is anything else, any span is empty or unreadable,
+# or any new line fails the predicate. Uses the same classified-position source
+# as _fm_secondmate_status_new_lines_routine above. The one walker shared by
+# signal_secondmate_echoes_only and signal_self_maintenance_done_only below, so
+# the span-reading mechanics (classified-position lookup, size/chunk bounds,
+# blank-line skip) live in exactly one place for both absorb rules.
+_fm_secondmate_signal_new_lines_pass() {  # <line-predicate-fn> <file> ...
+  local pred=$1 f base dir task start size chunk line seen=0
+  shift
   for f in "$@"; do
     base=${f##*/}
     dir=${f%/*}
@@ -2762,11 +2814,65 @@ signal_secondmate_echoes_only() {  # <file> ...
     chunk=$(_fm_status_read_span "$f" "$start" "$((size - start))") || return 1
     while IFS= read -r line || [ -n "$line" ]; do
       case "$line" in *[![:space:]]*) ;; *) continue ;; esac
-      status_line_is_ack_echo "$line" || return 1
+      "$pred" "$line" || return 1
       seen=1
     done <<SPAN
 $chunk
 SPAN
+  done
+  [ "$seen" -eq 1 ]
+}
+
+# 0 (absorb) when every file in a no-verb "signal:" wake is a kind=secondmate
+# task's .status log whose lines new since the watcher's classified position are
+# all acknowledgement echoes (status_line_is_ack_echo owns that rule); 1 when any
+# file is anything else, any span is empty or unreadable, or any new line is not
+# an echo.
+signal_secondmate_echoes_only() {  # <file> ...
+  _fm_secondmate_signal_new_lines_pass status_line_is_ack_echo "$@"
+}
+
+# 0 (absorb) when every file in a no-verb "signal:" wake is a kind=secondmate
+# task's .status log whose lines new since the watcher's classified position are
+# all self-maintenance receipts (status_line_is_self_maintenance_done owns that
+# rule, currently a stow-pass completion); 1 otherwise. A `done:` self-
+# maintenance receipt is deliberately its OWN absorb path, never folded into
+# signal_secondmate_echoes_only above: an echo is verb-restricted to
+# working/resolved precisely because `done` must always wake by default, so a
+# mixed batch of one real `done:` deliverable and one stow receipt must still
+# surface (each function only returns 0 when EVERY new line matches its own
+# narrower rule).
+signal_self_maintenance_done_only() {  # <file> ...
+  _fm_secondmate_signal_new_lines_pass status_line_is_self_maintenance_done "$@"
+}
+
+# 0 (absorb) when every file in a no-verb "signal:" wake is a BARE .turn-ended
+# ping - never a *.status file, which the caller's signal_files_actionable
+# already classified on its own merits - whose task's current status log ends on
+# a line that is not captain-relevant (status_is_captain_relevant). A harness's
+# turn-ended touch fires every turn regardless of whether the task's status
+# moved; when it arrives with no paired *.status file in the same wake batch,
+# the status log provably did not change this poll (a changed one would have
+# been polled and included alongside it), so a repeat ping over an unchanged,
+# non-captain-relevant status line is the same "nothing new happened" class
+# PR22 already closes for stale windows, extended here to the different
+# signal/turn-end wake a long-running background command with no busy pane can
+# keep firing. 1 (surface) when any file is a *.status file (mixed batch, left
+# to the ordinary actionable/provably-working path on purpose), any task has no
+# resolvable status log, or any task's current line IS captain-relevant, so an
+# ambiguous or unresolvable case always wakes.
+signal_turnend_status_quiet() {  # <file> ...
+  local f base dir task last seen=0
+  for f in "$@"; do
+    base=${f##*/}
+    case "$base" in *.turn-ended) task=${base%.turn-ended} ;; *) return 1 ;; esac
+    [ -n "$task" ] || return 1
+    dir=${f%/*}
+    [ "$dir" != "$f" ] || dir=.
+    last=$(last_status_line "$dir/$task.status") || return 1
+    [ -n "$last" ] || return 1
+    status_is_captain_relevant "$last" && return 1
+    seen=1
   done
   [ "$seen" -eq 1 ]
 }
