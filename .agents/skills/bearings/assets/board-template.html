@@ -252,6 +252,12 @@ a { color: inherit; text-decoration: none; }
 .bb-row__check { width: 26px; height: 26px; border-radius: var(--radius-sm); display: grid; place-items: center; flex: none;
   background: var(--status-online-soft); color: var(--status-online); border: 1.5px solid var(--sea-200); }
 .bb-row__check svg { width: 15px; height: 15px; }
+.bb-bar { position: relative; flex: 1 1 auto; min-width: 60px; height: 8px; margin-top: 6px;
+  border-radius: var(--radius-pill); background: var(--paper-300); overflow: hidden; }
+.bb-bar__fill { position: absolute; inset: 0 auto 0 0; width: 0%; border-radius: var(--radius-pill); background: var(--ink-300); }
+.bb-bar__fill--online { background: var(--status-online); }
+.bb-bar__fill--warn { background: var(--status-warn); }
+.bb-bar__fill--danger { background: var(--status-danger); }
 .bb-morechip {
   display: inline-flex; align-items: center; gap: 6px; margin: 10px 18px 12px;
   font-size: var(--fs-xs); font-weight: 800; color: var(--text-muted);
@@ -372,6 +378,16 @@ a { color: inherit; text-decoration: none; }
       <span class="fm-sign fm-sign--muted" id="bb-spend-sub"></span>
     </div>
     <div class="fm-card"><div class="bb-rows" id="bb-spend"></div></div>
+  </section>
+
+  <section class="bb-section" id="bb-quota-section" hidden>
+    <div class="bb-section__head">
+      <span class="fm-sign fm-sign--eyebrow">Quota</span>
+      <span class="fm-sign fm-sign--muted" id="bb-quota-sub"></span>
+    </div>
+    <div class="fm-card"><div class="bb-rows" id="bb-quota-windows"></div></div>
+    <div class="fm-card" id="bb-quota-attention-card" hidden><div class="bb-rows" id="bb-quota-attention"></div></div>
+    <div class="fm-card"><div class="bb-rows" id="bb-quota-dispatch"></div></div>
   </section>
 
   <footer class="bb-foot">
@@ -686,6 +702,74 @@ __FM_BEARINGS_BOARD_DATA__
       row.appendChild(el("span", "bb-row__pr", "$" + r.usd.toFixed(2)));
       sp.appendChild(row);
     });
+  }
+
+  /* Quota (optional): quota-axi windows joined with firstmate dispatch history */
+  if (data.quota) {
+    document.getElementById("bb-quota-section").hidden = false;
+    var homesLine = (data.quota.dispatch.homes || []).map(function (h) { return h.id + ":" + h.status; }).join(", ");
+    document.getElementById("bb-quota-sub").textContent =
+      data.quota.generated + " UTC" + (homesLine ? " · " + homesLine : "");
+
+    var qw = document.getElementById("bb-quota-windows");
+    if (!data.quota.windows.length) qw.appendChild(el("div", "bb-empty", "No quota windows reported."));
+    data.quota.windows.forEach(function (w) {
+      var row = el("div", "bb-row");
+      var main = el("div", "bb-row__main");
+      var pct = w.percentRemaining;
+      var tone = pct == null ? "" : (pct >= 50 ? "online" : (pct >= 20 ? "warn" : "danger"));
+      main.appendChild(el("div", "bb-row__title", w.provider + " · " + w.scope));
+      var track = el("div", "bb-bar");
+      var fill = el("div", "bb-bar__fill" + (tone ? " bb-bar__fill--" + tone : ""));
+      fill.style.width = (pct == null ? 0 : pct) + "%";
+      track.appendChild(fill);
+      main.appendChild(track);
+      main.appendChild(el("div", "bb-row__sub",
+        (pct == null ? "unknown" : pct + "%") + " left · runway=" + w.runway + " · resets " + (w.resetsAt || "unknown")));
+      row.appendChild(main);
+      qw.appendChild(row);
+    });
+
+    var qaCard = document.getElementById("bb-quota-attention-card");
+    if (data.quota.attention.length) {
+      qaCard.hidden = false;
+      var qa = document.getElementById("bb-quota-attention");
+      data.quota.attention.forEach(function (a) {
+        var row = el("div", "bb-row");
+        var main = el("div", "bb-row__main");
+        main.appendChild(el("div", "bb-row__title", a.provider + " · " + a.scope));
+        main.appendChild(el("div", "bb-row__sub", a.detail || a.kind));
+        row.appendChild(main);
+        row.appendChild(badge(a.kind === "auth_required" ? "danger" : "warn", a.kind));
+        qa.appendChild(row);
+      });
+    }
+
+    var qd = document.getElementById("bb-quota-dispatch");
+    if (!data.quota.dispatch.rows.length && !data.quota.dispatch.live_fallback.length) {
+      qd.appendChild(el("div", "bb-empty", "No dispatch history recorded."));
+    }
+    data.quota.dispatch.rows.forEach(function (r) {
+      var row = el("div", "bb-row");
+      var main = el("div", "bb-row__main");
+      main.appendChild(el("div", "bb-row__title", r.harness + " · " + (r.model || "(default)")));
+      main.appendChild(el("div", "bb-row__sub",
+        "dispatched " + r.dispatched + " · live " + r.live + " · " + (r.run_seconds / 3600).toFixed(1) +
+        "h run · " + r.prs_shipped + " PRs · " + r.failures + " failures"));
+      row.appendChild(main);
+      qd.appendChild(row);
+    });
+    data.quota.dispatch.live_fallback.forEach(function (r) {
+      var row = el("div", "bb-row");
+      var main = el("div", "bb-row__main");
+      main.appendChild(el("div", "bb-row__title", r.harness + " · " + (r.model || "(default)")));
+      main.appendChild(el("div", "bb-row__sub", "live now (no fleet ledger)"));
+      row.appendChild(main);
+      qd.appendChild(row);
+    });
+    if (data.quota.dispatch.gaps.length) {
+      qd.appendChild(el("div", "bb-row__sub", "Gaps: " + data.quota.dispatch.gaps.join(" · ")));
+    }
   }
 
   /* Charted Next + dispatch picker */

@@ -17,6 +17,7 @@ The shared no-mistakes gate lifecycle boundary is summarized in [architecture.md
 | `fm-fleet-snapshot.sh`   | Print structured fleet snapshot JSON and refresh only its parent-side remote-ledger cache (schema `fm-fleet-snapshot.v1`) |
 | `fm-bridge-snapshot.sh`  | Print the read-only bridge console snapshot JSON for fleet, quota, context, token, validation, process, and upstream observability |
 | `fm-spend-report.sh`     | Print the read-only Claude spend report (calls, raw tokens, list dollars) by agent kind, model and trigger class over a window; `--json` feeds the bearings board's `spend` field |
+| `fm-quota-report.sh`     | Print the read-only join of quota-axi's provider windows and attention rows with firstmate's own fleet-ledger dispatch history per harness and model; `--json` feeds the bearings board's `quota` field and the `/quota` skill |
 | `fm-task-timeline.sh`    | Write the per-task timeline record's dispatch and cleanup checkpoints (called by `fm-spawn.sh` and `fm-teardown.sh`) and build the read-only per-task time and token timeline the bridge console's `t` key shows; `bin/fm_task_timeline.py` owns the record schema |
 | `fm-home-summary-refresh.sh` | Atomically publish this home's structured summary ledger                         |
 | `fm-fleet-ledger.sh`     | Append the opt-in fleet activity ledger's records ([contract](fleet-ledger.md))      |
