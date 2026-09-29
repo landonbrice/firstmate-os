@@ -83,6 +83,11 @@
 # `bin/fm-spend-report.sh --json`; the template shows it as a compact Spend
 # section when present, and a malformed one refuses like any other field.
 #
+# `quota` is an OPTIONAL fm-quota-report.v1 object, the output of
+# `bin/fm-quota-report.sh --json`; the template shows it as a compact Quota
+# section (provider window bars beside a per-harness/model dispatch table)
+# when present, and a malformed one refuses like any other field.
+#
 # The board path is stable - $FM_HOME/.lavish/bearings-board.html - so a
 # re-invocation rebuilds the same file in place, which keeps the same Lavish
 # session URL and the same canonical process-event source id. Injection escapes
@@ -199,6 +204,42 @@ validate_payload() {  # <data.json>
       and (.rows | type == "array") and ([.rows[] | spend_row] | all)
       and (.totals | type == "object" and (.context_tokens | count) and (.usd | count))
       and ((has("unmeasured") | not) or (.unmeasured | type == "object"));
+    def nullable_string: . == null or (type == "string");
+    def nullable_number: . == null or (type == "number");
+    def quota_window_row:
+      type == "object"
+      and (.provider | nonempty_string) and (.scope | nonempty_string)
+      and (.account | nullable_string)
+      and (.percentRemaining | nullable_number)
+      and (.resetsAt | nullable_string)
+      and (.runway | nonempty_string)
+      and (.spendPriority | nullable_number)
+      and (.confidence | nullable_string);
+    def quota_attention_row:
+      type == "object"
+      and (.provider | nonempty_string) and (.scope | nonempty_string)
+      and (.account | nullable_string)
+      and (.kind | nonempty_string)
+      and (.detail | nullable_string);
+    def quota_dispatch_row:
+      type == "object"
+      and (.harness | nonempty_string) and (.model | nullable_string)
+      and (.dispatched | count) and (.live | count) and (.run_seconds | count)
+      and (.prs_shipped | count) and (.failures | count);
+    def quota_live_fallback_row:
+      type == "object" and (.harness | nonempty_string) and (.model | nullable_string);
+    def quota_home_status_row:
+      type == "object" and (.id | nonempty_string) and (.status | nonempty_string);
+    def quota_report:
+      type == "object"
+      and (.generated | nonempty_string)
+      and (.windows | type == "array") and ([.windows[] | quota_window_row] | all)
+      and (.attention | type == "array") and ([.attention[] | quota_attention_row] | all)
+      and (.dispatch | type == "object")
+      and (.dispatch.homes | type == "array") and ([.dispatch.homes[] | quota_home_status_row] | all)
+      and (.dispatch.rows | type == "array") and ([.dispatch.rows[] | quota_dispatch_row] | all)
+      and (.dispatch.live_fallback | type == "array") and ([.dispatch.live_fallback[] | quota_live_fallback_row] | all)
+      and (.dispatch.gaps | type == "array") and ([.dispatch.gaps[] | type == "string"] | all);
     type == "object"
     and (.schema == $schema)
     and (.home | nonempty_string)
@@ -213,6 +254,7 @@ validate_payload() {  # <data.json>
     and ((has("charted_warning_more") | not)
       or ((.charted_warning_more | type == "number") and (.charted_warning_more >= 0) and (.charted_warning_more | floor == .)))
     and ((has("spend") | not) or (.spend | spend_report))
+    and ((has("quota") | not) or (.quota | quota_report))
     and ([.captains_call[] | call_item] | all)
     and ([.underway[] | underway_item] | all)
     and ([.landed[] | landed_item] | all)

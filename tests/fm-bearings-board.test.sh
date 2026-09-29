@@ -787,8 +787,31 @@ test_spend_field_is_optional_validated_and_injected() {
   pass "spend field is optional, validated and injected"
 }
 
+test_quota_field_is_optional_validated_and_injected() {
+  local home data out rc
+  home=$(make_home quota)
+  data="$home/data.json"
+  write_valid_payload "$data"
+  jq '.quota = {"schema":"fm-quota-report.v1","generated":"2026-09-25T00:00:00Z",
+    "windows":[{"provider":"claude","account":null,"scope":"all_models","percentRemaining":66,
+      "resetsAt":"2026-10-04T00:00:00Z","runway":"projected_exhaustion","spendPriority":-0.2,"confidence":"established"}],
+    "attention":[{"provider":"cursor","account":null,"scope":"all","kind":"auth_required","detail":"Cursor sign-in required"}],
+    "dispatch":{"homes":[{"id":"(main)","status":"ledger"}],
+      "rows":[{"harness":"claude","model":"claude-sonnet-5","dispatched":2,"live":1,"run_seconds":210,"prs_shipped":1,"failures":0}],
+      "live_fallback":[],"gaps":["(main): fleet ledger not enabled"]}}' "$data" > "$data.tmp" \
+    && mv "$data.tmp" "$data"
+  out=$(run_board "$home" build "$data" 2>&1) || fail "a payload with a valid quota field was refused: $out"
+  [ "$(extract_payload "$home/.lavish/bearings-board.html" | jq -r '.quota.windows[0].provider')" = claude ] \
+    || fail "the quota field did not round-trip through the built page"
+  jq '.quota.dispatch.rows[0].dispatched = "2"' "$data" > "$data.tmp" && mv "$data.tmp" "$data"
+  set +e; out=$(run_board "$home" build "$data" 2>&1); rc=$?; set -e
+  [ "$rc" -ne 0 ] || fail "a quota dispatch row with a non-numeric dispatched count was accepted"
+  pass "quota field is optional, validated and injected"
+}
+
 test_path_is_stable_and_home_scoped
 test_spend_field_is_optional_validated_and_injected
+test_quota_field_is_optional_validated_and_injected
 test_build_refuses_malformed_payloads_before_touching_the_board
 test_charted_kind_is_optional_and_accepts_both_values
 test_build_injects_binds_then_arms
