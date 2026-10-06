@@ -21,11 +21,13 @@ make_spawn_pi_probe() {
 #!/usr/bin/env bash
 set -u
 if [ "${1:-}" = --help ]; then
-  if [ "${FM_FAKE_PI_VERSION:-0.84.0}" = 0.82.0 ]; then
-    printf '%s\n' 'Pi 0.82.0' 'Options: --help'
-  else
-    printf '%s\n' "Pi ${FM_FAKE_PI_VERSION:-0.84.0}" 'Options: --help --tui-mode <mode>'
-  fi
+  # Mirror real Pi help advertising: 0.82.0 has --approve but not --tui-mode;
+  # 0.50.0 is a synthetic pre-approve probe; current defaults advertise both.
+  case "${FM_FAKE_PI_VERSION:-0.84.0}" in
+  0.50.0) printf '%s\n' 'Pi 0.50.0' 'Options: --help' ;;
+  0.82.0) printf '%s\n' 'Pi 0.82.0' 'Options: --help --approve' ;;
+  *) printf '%s\n' "Pi ${FM_FAKE_PI_VERSION:-0.84.0}" 'Options: --help --tui-mode <mode> --approve' ;;
+  esac
 fi
 exit 0
 SH
@@ -87,6 +89,12 @@ make_seeded_secondmate_home() {
   git -C "$home" init -q -b main
 }
 
+task_inbox_export() {  # <home> <id>
+  local state
+  state=$(CDPATH='' cd -- "$1/state" && pwd -P) || fail "cannot resolve state dir $1/state"
+  printf "export FM_TASK_INBOX='%s'; " "$state/$2.inbox"
+}
+
 ai_trailer_hooks_prefix() {  # <home> <id>
   local state
   state=$(CDPATH='' cd -- "$1/state" && pwd -P) || fail "cannot resolve state dir $1/state"
@@ -102,7 +110,8 @@ run_spawn() {
   # which would make launch assertions depend on the developer's environment.
   # A test opts in to the set case via FM_TEST_CLAUDE_CONFIG_DIR.
   CLAUDE_CONFIG_DIR="${FM_TEST_CLAUDE_CONFIG_DIR:-}" \
-    FM_FAKE_LAUNCH_LOG="$launchlog" FM_FAKE_PI_VERSION="${FM_TEST_PI_VERSION:-0.84.0}" \
+    FM_FAKE_LAUNCH_LOG="$launchlog" FM_FAKE_PANE_LOG="${FM_TEST_PANE_LOG:-}" \
+    FM_FAKE_PI_VERSION="${FM_TEST_PI_VERSION:-0.84.0}" \
     FM_FAKE_CURSOR_MODELS="${FM_TEST_CURSOR_MODELS:-}" \
     FM_FAKE_CURSOR_LIST_STATUS="${FM_TEST_CURSOR_LIST_STATUS:-0}" \
     GROK_HOME="$home/grok-home" \
@@ -475,7 +484,7 @@ test_active_dispatch_profile_allows_raw_launch_command() {
   # The unverified-adapter escape hatch is still an agent this fleet launched,
   # so it carries the compact-adviser floor and the AI-trailer strip; nothing
   # else may rewrite the captain's own command.
-  [ "$launch" = "export COMPACT_ADVISER_DISABLE=1; $(ai_trailer_hooks_prefix "$HOME_DIR" "$id")custom-agent --flag" ] || fail "raw launch command changed"$'\n'"actual: $launch"
+  [ "$launch" = "export COMPACT_ADVISER_DISABLE=1; $(task_inbox_export "$HOME_DIR" "$id")$(ai_trailer_hooks_prefix "$HOME_DIR" "$id")custom-agent --flag" ] || fail "raw launch command changed"$'\n'"actual: $launch"
   pass "active crew-dispatch profile allows the raw launch-command escape hatch"
 }
 
@@ -881,6 +890,23 @@ test_batch_preserves_native_ultra() {
   pass "batch dispatch preserves native Ultra in metadata and launch flags"
 }
 
+test_pi_scout_launch_enters_recorded_worktree() {
+  local rec id out status
+  id=profile-pi-scout-cwd-z1
+  rec=$(make_spawn_case profile-pi-scout-cwd pi "$id")
+  read_case_record "$rec"
+
+  FM_TEST_PANE_LOG="$CASE_DIR/pane.log"
+  out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" \
+    "$id" "$PROJ_DIR" --scout --harness pi)
+  status=$?
+  unset FM_TEST_PANE_LOG
+  expect_code 0 "$status" "Pi scout spawn should succeed"
+  assert_grep "cd -- '$WT_DIR'" "$CASE_DIR/pane.log" \
+    "Pi scout spawn must enter the recorded worktree before launching the agent"
+  pass "Pi scout spawn enters the recorded worktree before launch"
+}
+
 test_pi_threads_model_and_max_effort() {
   local rec id out status launch
   id=profile-pi-z8
@@ -1011,8 +1037,8 @@ test_pi_signed_persistent_secondmate_uses_pi_extensions_and_identity() {
   assert_absent "$HOME_DIR/data/$id/launch-brief.md" "secondmate launch received a worker overlay"
   launch=$(cat "$LAUNCH_LOG")
   assert_contains "$launch" "< '$sm/data/charter.md'" "secondmate launch lost its original charter"
-  assert_contains "$launch" "FM_PI_HARNESS=pi-signed '$FAKEBIN_DIR/pi-signed' --tui-mode regular -e '$sm/.pi/extensions/fm-primary-turnend-guard.ts' -e '$sm/.pi/extensions/fm-primary-pi-watch.ts'" \
-    "pi-signed secondmate did not force the regular TUI with Pi's primary extension launch shape"
+  assert_contains "$launch" "FM_PI_HARNESS=pi-signed '$FAKEBIN_DIR/pi-signed' --tui-mode regular --approve -e '$sm/.pi/extensions/fm-primary-turnend-guard.ts' -e '$sm/.pi/extensions/fm-primary-pi-watch.ts'" \
+    "pi-signed secondmate did not force the regular TUI with Pi's primary extension launch shape and seeded-home --approve"
   if [ "${FM_TEST_EVIDENCE:-0}" = 1 ]; then
     printf '# evidence begin: persistent secondmate\n%s\n' "$out"
     printf 'launch command:\n%s\noriginal charter:\n' "$launch"
@@ -1020,6 +1046,74 @@ test_pi_signed_persistent_secondmate_uses_pi_extensions_and_identity() {
     printf 'supervisor AGENTS.md and charter remain byte-identical; no worker overlay created\n# evidence end\n'
   fi
   pass "pi-signed is a distinct persistent secondmate runtime with shared Pi supervision semantics"
+}
+
+test_pi_seeded_secondmate_preapproves_project_trust() {
+  local harness rec id sm out status launch
+  for harness in pi pi-signed; do
+    id="profile-${harness}-seeded-approve-z8e"
+    rec=$(make_spawn_case "profile-${harness}-seeded-approve" codex "$id")
+    read_case_record "$rec"
+    printf '%s\n' "$harness" > "$HOME_DIR/config/secondmate-harness"
+    sm="$CASE_DIR/secondmate-home"
+    make_seeded_secondmate_home "$sm" "$id"
+    sm=$(cd "$sm" && pwd -P)
+
+    out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$sm" --secondmate)
+    status=$?
+    expect_code 0 "$status" "$harness seeded secondmate spawn should succeed"
+    launch=$(cat "$LAUNCH_LOG")
+    assert_contains "$launch" "'$FAKEBIN_DIR/$harness'" \
+      "$harness secondmate must launch the probed executable"
+    assert_contains "$launch" "--approve" \
+      "$harness seeded secondmate must pre-approve project trust when help advertises --approve"
+    assert_contains "$launch" "-e '$sm/.pi/extensions/fm-primary-turnend-guard.ts'" \
+      "$harness secondmate lost its turn-end extension"
+  done
+  pass "seeded Pi/pi-signed secondmate launches carry session --approve when advertised"
+}
+
+test_pi_worker_launch_omits_seeded_home_approve() {
+  local rec id out status launch
+  id=profile-pi-worker-no-approve-z8f
+  rec=$(make_spawn_case profile-pi-worker-no-approve pi "$id")
+  read_case_record "$rec"
+
+  out=$(run_ship_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$PROJ_DIR")
+  status=$?
+  expect_code 0 "$status" "pi ship spawn should succeed"
+  launch=$(cat "$LAUNCH_LOG")
+  assert_contains "$launch" "FM_PI_HARNESS=pi '$FAKEBIN_DIR/pi' --tui-mode regular" \
+    "pi worker launch lost its regular TUI probe"
+  assert_not_contains "$launch" "--approve" \
+    "ordinary Pi worker launches must not receive secondmate seeded-home --approve"
+  pass "ordinary Pi worker launches omit --approve"
+}
+
+test_pi_approve_probe_omits_unsupported_flag() {
+  local harness rec id sm out status launch
+  for harness in pi pi-signed; do
+    id="profile-${harness}-no-approve-z8g"
+    rec=$(make_spawn_case "profile-${harness}-no-approve" codex "$id")
+    read_case_record "$rec"
+    printf '%s\n' "$harness" > "$HOME_DIR/config/secondmate-harness"
+    sm="$CASE_DIR/secondmate-home"
+    make_seeded_secondmate_home "$sm" "$id"
+    sm=$(cd "$sm" && pwd -P)
+
+    out=$(FM_TEST_PI_VERSION=0.50.0 \
+      run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$sm" --secondmate)
+    status=$?
+    expect_code 0 "$status" "$harness without --approve must still spawn"
+    launch=$(cat "$LAUNCH_LOG")
+    assert_contains "$launch" "'$FAKEBIN_DIR/$harness'" \
+      "$harness without --approve must still launch the probed executable"
+    assert_not_contains "$launch" "--approve" \
+      "$harness without advertised --approve must omit the flag"
+    assert_not_contains "$launch" "--tui-mode" \
+      "$harness 0.50.0 probe fixture must omit --tui-mode too"
+  done
+  pass "Pi approve probing omits --approve when help does not advertise it"
 }
 
 test_batch_forwards_shared_profile_flags() {
@@ -1055,7 +1149,7 @@ test_claude_forwards_firstmate_config_dir_when_set() {
   status=$?
   expect_code 0 "$status" "claude spawn with CLAUDE_CONFIG_DIR set should succeed"
   launch=$(cat "$LAUNCH_LOG")
-  assert_contains "$launch" "CLAUDE_CONFIG_DIR='$CASE_DIR/claude-work' env -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u GEMINI_CLI CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_SEND_FEEDBACK=0 claude --dangerously-skip-permissions --settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false},\"skipDangerousModePermissionPrompt\":true}' --strict-mcp-config --setting-sources project,local" \
+  assert_contains "$launch" "CLAUDE_CONFIG_DIR='$CASE_DIR/claude-work' env -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u GEMINI_CLI CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_SEND_FEEDBACK=0 claude --dangerously-skip-permissions $(claude_worker_add_dirs "$HOME_DIR" "$id")--settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false},\"skipDangerousModePermissionPrompt\":true}' --strict-mcp-config --setting-sources project,local" \
     "claude launch did not forward firstmate's CLAUDE_CONFIG_DIR to the crewmate pane"
   pass "claude forwards firstmate's CLAUDE_CONFIG_DIR so the crewmate uses the same credential store"
 }
@@ -1749,6 +1843,8 @@ SH
     assert_grep "$inbox" "$prompt" "$kind command did not name the worker's own steering inbox"
     assert_grep "do not reject it as another home's state" "$prompt" "$kind command did not distinguish its inbox from another home's namespace"
     assert_grep "Never inspect or change any other home's endpoint namespace" "$prompt" "$kind command weakened cross-home isolation"
+    assert_grep "skill name does not resolve in this session, read \`$ROOT/.agents/skills/firstmate-coding-guidelines/SKILL.md\` instead." "$prompt" \
+      "$kind command did not name the Firstmate skill file as the fallback"
     assert_grep 'brief for' "$prompt" "$kind command lost the task"
     [ "$(grep -c '^# Current worker role contract$' "$prompt")" -eq 1 ] ||
       fail "$brief_kind $kind duplicated the delivered worker contract"
@@ -1798,13 +1894,25 @@ claude_launch_brief_arg() {  # <launch>
   )
 }
 
+# The --add-dir segment every Claude worker launch now carries between the
+# permission flag and --settings, real-path resolved the way the spawn's
+# claude_add_dirs_flag resolves it. Prints a trailing space so callers can
+# drop it straight into an expected command.
+claude_worker_add_dirs() {  # <home> <id>
+  local state_real data_real root_real
+  state_real=$(cd "$1/state" && pwd -P)
+  data_real=$(cd "$1/data" && pwd -P)
+  root_real=$(cd "$ROOT" && pwd -P)
+  printf '%s ' "--add-dir '$state_real/operational-inbox' --add-dir '$state_real/$2.inbox' --add-dir '$data_real/$2' --add-dir '$root_real/.agents/skills'"
+}
+
 claude_expected_launch() {  # <launch> <home> <id> <permission-flag>
   local doorbell quoted
   doorbell=$(claude_launch_brief_arg "$1")
   [ "$(printf '%s' "$doorbell" | "$ROOT/bin/fm-operational-input.sh" doorbell-kind)" = launch-brief ] \
     || doorbell="not a launch-brief doorbell"
   quoted="'$(printf '%s' "$doorbell" | sed "s/'/'\\\\''/g")'"
-  printf '%s' "export COMPACT_ADVISER_DISABLE=1; $(ai_trailer_hooks_prefix "$2" "$3")env -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u GEMINI_CLI CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_SEND_FEEDBACK=0 claude $4 --settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false},\"skipDangerousModePermissionPrompt\":true}' --strict-mcp-config --setting-sources project,local $CLAUDE_CONTROL_CHANNEL_FLAG $quoted"
+  printf '%s' "export COMPACT_ADVISER_DISABLE=1; $(task_inbox_export "$2" "$3")$(ai_trailer_hooks_prefix "$2" "$3")env -u CURSOR_AGENT -u CURSOR_INVOKED_AS -u GEMINI_CLI CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false CLAUDE_CODE_SEND_FEEDBACK=0 claude $4 $(claude_worker_add_dirs "$2" "$3")--settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false},\"skipDangerousModePermissionPrompt\":true}' --strict-mcp-config --setting-sources project,local $CLAUDE_CONTROL_CHANNEL_FLAG $quoted"
 }
 
 test_claude_permission_mode_bypass_matches_absent_launch() {
@@ -1853,9 +1961,48 @@ test_claude_permission_mode_auto_reaches_scout_launch() {
   status=$?
   expect_code 0 "$status" "claude scout spawn with claude-permission-mode=auto should succeed"
   launch=$(cat "$LAUNCH_LOG")
-  assert_contains "$launch" "claude --permission-mode auto --settings" "scout launch did not carry --permission-mode auto"
+  assert_contains "$launch" "claude --permission-mode auto " "scout launch did not carry --permission-mode auto"
   assert_not_contains "$launch" "--dangerously-skip-permissions" "scout launch must not request bypass mode"
   pass "config/claude-permission-mode=auto reaches scout launches too"
+}
+
+# A Claude worker's Firstmate channel files all live outside its worktree cwd
+# (launch record in state/operational-inbox, steers in state/<id>.inbox, brief
+# in data/<id>), and since Claude Code 2.1.257 the first file-tool read of
+# them under --permission-mode auto parks the pane on a one-time interactive
+# question; a "Block" answer on the machine then refuses the same reads even
+# under bypass. Drive the real emitted launch through a claude stub that
+# models that working-directory check: every channel path must resolve inside
+# the pane cwd or an --add-dir, under both permission modes, for ships and
+# scouts alike.
+test_claude_worker_launch_covers_task_channel_dirs() {
+  local mode kind rec id out status launch reqs eval_out eval_rc
+  for mode in bypass auto; do
+    for kind in ship scout; do
+      id="adddir-$mode-$kind"
+      rec=$(make_spawn_case "adddir-$mode-$kind" claude "$id")
+      read_case_record "$rec"
+      printf '%s\n' "$mode" > "$HOME_DIR/config/claude-permission-mode"
+      fm_fake_claude_outside_read_gate "$FAKEBIN_DIR"
+      reqs="$CASE_DIR/channel-requirements.txt"
+      printf '%s\n' "$HOME_DIR/state/$id.inbox" "$HOME_DIR/data/$id" "$ROOT/.agents/skills" > "$reqs"
+
+      if [ "$kind" = ship ]; then
+        out=$(run_ship_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$PROJ_DIR")
+      else
+        out=$(run_spawn "$HOME_DIR" "$WT_DIR" "$FAKEBIN_DIR" "$LAUNCH_LOG" "$id" "$PROJ_DIR" --scout)
+      fi
+      status=$?
+      expect_code 0 "$status" "claude $kind spawn under $mode should succeed"$'\n'"$out"
+      launch=$(cat "$LAUNCH_LOG")
+
+      eval_out=$(fm_eval_launch "$launch" "$WT_DIR" "$FAKEBIN_DIR" "FM_FAKE_CLAUDE_REQUIREMENTS=$reqs" 2>&1)
+      eval_rc=$?
+      [ "$eval_rc" -eq 0 ] \
+        || fail "claude $kind launch under $mode would hit the outside-read gate"$'\n'"$eval_out"
+    done
+  done
+  pass "claude worker launches cover the task-channel directories in bypass and auto modes"
 }
 
 test_claude_permission_mode_invalid_refuses_before_endpoint_or_metadata() {
@@ -1927,11 +2074,15 @@ test_opencode_omits_variant_when_model_family_lacks_effort
 test_native_effort_validator_keeps_axes_separate
 test_native_pi_ultra_is_explicit_and_model_scoped
 test_batch_preserves_native_ultra
+test_pi_scout_launch_enters_recorded_worktree
 test_pi_threads_model_and_max_effort
 test_pi_tui_mode_probe_is_safe_for_old_and_new_pi
 test_pi_signed_threads_shared_pi_profile_and_preserves_identity
 test_pi_signed_missing_binary_refuses_before_endpoint_or_metadata
 test_pi_signed_persistent_secondmate_uses_pi_extensions_and_identity
+test_pi_seeded_secondmate_preapproves_project_trust
+test_pi_worker_launch_omits_seeded_home_approve
+test_pi_approve_probe_omits_unsupported_flag
 test_batch_forwards_shared_profile_flags
 test_claude_forwards_firstmate_config_dir_when_set
 test_lavish_server_address_is_exported_to_worker_launch
@@ -1940,6 +2091,7 @@ test_claude_omits_config_dir_prefix_when_unset
 test_claude_permission_mode_bypass_matches_absent_launch
 test_claude_permission_mode_auto_swaps_only_the_permission_flag
 test_claude_permission_mode_auto_reaches_scout_launch
+test_claude_worker_launch_covers_task_channel_dirs
 test_claude_permission_mode_invalid_refuses_before_endpoint_or_metadata
 test_non_claude_harness_ignores_claude_permission_mode
 test_non_claude_harness_ignores_config_dir
