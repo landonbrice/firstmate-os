@@ -14,6 +14,8 @@
 # Acknowledgement is a notification turn whose final text says "shipshape" in
 # under 400 characters. Codex and agy sessions are reported as unmeasured.
 # Dollars are Anthropic list prices, not an invoice.
+# The pipeline row is only the Claude-transcript slice of the window; durable
+# per-task no-mistakes spend across every agent is bin/fm-pipeline-spend.sh's.
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
