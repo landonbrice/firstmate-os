@@ -1574,6 +1574,25 @@ families_for_changed_path() {
       printf '%s\n' __script__:fm-pi-primary-types.test.sh
       printf '%s\n' live-harness-optin
       ;;
+    .cursor/hooks.json)
+      printf '%s\n' __script__:fm-cursor-primary.test.sh
+      printf '%s\n' session-bootstrap
+      ;;
+    .grok/hooks/fm-primary-sessionstart-nudge.json|\
+    .opencode/plugins/fm-primary-sessionstart-nudge.js)
+      printf '%s\n' __script__:fm-sessionstart-nudge.test.sh
+      ;;
+    .grok/hooks/fm-primary-turnend-guard.json|\
+    .opencode/plugins/fm-primary-turnend-guard.js)
+      printf '%s\n' __script__:fm-turnend-guard.test.sh
+      ;;
+    .opencode/plugins/fm-primary-watch-arm.js|.pi/extensions/fm-primary-pi-watch.ts)
+      printf '%s\n' __script__:fm-pi-watch-extension.test.sh
+      ;;
+    .omp/extensions/fm-primary-turnend-guard.ts|.omp/extensions/fm-primary-omp-watch.ts)
+      printf '%s\n' __script__:fm-omp-harness.test.sh
+      printf '%s\n' __script__:fm-pi-primary-types.test.sh
+      ;;
     bin/fm-sessionstart-run.sh|.claude/settings.json|.codex/hooks.json|\
     .pi/extensions/fm-primary-turnend-guard.ts)
       # The run tier's two harness-supplied facts (source vocabulary and
@@ -1581,6 +1600,9 @@ families_for_changed_path() {
       printf '%s\n' __script__:fm-pi-windows-shell-invocation.test.sh
       printf '%s\n' session-bootstrap
       printf '%s\n' live-harness-optin
+      ;;
+    bin/fm-host-mirror.sh)
+      printf '%s\n' __script__:fm-host-mirror.test.sh
       ;;
     bin/fm-extension.mjs|bin/fm-extension.sh|docs/examples/process-event-extension/*)
       printf '%s\n' __script__:fm-extension-binding.test.sh

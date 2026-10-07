@@ -175,6 +175,8 @@
 # only when FM_TEST_SEAM=1; tests/lib.sh arms the marker for isolated suites.
 set -u
 
+[ -z "${FM_TASK_ID:-}" ] || exit 0
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FM_ROOT="${FM_ROOT_OVERRIDE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 FM_HOME="${FM_HOME:-${FM_ROOT_OVERRIDE:-$FM_ROOT}}"

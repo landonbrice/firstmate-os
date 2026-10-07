@@ -255,6 +255,34 @@ test_run_startup_runs_the_full_digest() {
   pass "run wrapper: startup runs the full digest and never also nudges"
 }
 
+test_worker_marker_suppresses_session_start() {
+  local root="$TMP_ROOT/run-worker-marker" out status=0
+  make_run_primary "$root"
+  out=$(FM_TASK_ID=fm-worker-marker run_hook "$root" --source startup </dev/null) || status=$?
+  expect_code 0 "$status" "worker-marked run wrapper startup"
+  [ -z "$out" ] || fail "worker-marked startup printed a digest: $out"
+  assert_absent "$root/state/.lock" "worker-marked startup acquired the fleet lock"
+  assert_absent "$root/state/.session-start-complete" \
+    "worker-marked startup published a completion record"
+  expect_silent_zero "worker-marked nudge" env FM_TASK_ID=fm-worker-marker \
+    FM_GATE_REFUSE_BYPASS=0 FM_ROOT_OVERRIDE="$root" FM_HOME="$root" "$NUDGE"
+  pass "session start: a task worker gets no digest, nudge, lock, or completion record"
+}
+
+test_run_linked_secondmate_runs_the_full_digest() {
+  local base="$TMP_ROOT/run-secondmate-base" root="$TMP_ROOT/run-secondmate" out status=0
+  fm_git_worktree "$base" "$root" fm/run-secondmate
+  mkdir -p "$root/bin" "$root/state" "$root/data" "$root/config"
+  : > "$root/AGENTS.md"
+  printf 'run-secondmate\n' > "$root/.fm-secondmate-home"
+  out=$(run_hook "$root" --source startup </dev/null) || status=$?
+  expect_code 0 "$status" "linked secondmate run wrapper startup"
+  assert_contains "$out" "$FULL_BANNER$root" "linked secondmate did not run the full digest"
+  assert_contains "$out" "lock acquired: harness pid" "linked secondmate did not acquire its fleet lock"
+  assert_present "$root/state/.lock" "linked secondmate did not publish its fleet lock"
+  pass "session start: a linked secondmate still gets the full digest and fleet lock"
+}
+
 test_run_clear_and_compact_reemit() {
   local root out source status
   for source in clear compact; do
@@ -1104,6 +1132,8 @@ test_owned_lock_is_silent
 test_namespace_pid1_lock_holder_is_silent
 test_opencode_plugin_delivers_exact_nudge_once
 test_run_startup_runs_the_full_digest
+test_worker_marker_suppresses_session_start
+test_run_linked_secondmate_runs_the_full_digest
 test_run_clear_and_compact_reemit
 test_run_rebuild_forwards_source_to_drifted_instruction_refresh
 test_run_compact_without_completion_refreshes_before_finishing_startup

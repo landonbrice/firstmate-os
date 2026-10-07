@@ -97,6 +97,8 @@
 # exported by tests/lib.sh.
 set -u
 
+[ -z "${FM_TASK_ID:-}" ] || exit 0
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=bin/fm-gate-refuse-lib.sh
 . "$SCRIPT_DIR/fm-gate-refuse-lib.sh"

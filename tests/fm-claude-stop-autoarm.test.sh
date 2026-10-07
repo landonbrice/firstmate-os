@@ -1440,6 +1440,19 @@ test_active_in_marked_secondmate_home() {
   pass "auto-arm: active in a marked secondmate home"
 }
 
+test_worker_marker_never_arms() {
+  local dir out status=0
+  dir=$(make_primary_dir "$TMP_ROOT/worker-marker")
+  write_arm_fixture "$dir" actionable
+  : > "$dir/state/task.meta"
+  out=$(FM_TASK_ID=fm-worker-marker run_autoarm "$dir" 2>/dev/null) || status=$?
+  expect_code 0 "$status" "worker-marked Stop hook"
+  [ -z "$out" ] || fail "worker-marked Stop hook printed output: $out"
+  assert_absent "$dir/state/arm-ran" "worker-marked Stop hook armed the watcher"
+  assert_absent "$dir/state/.claude-autoarm-epoch" "worker-marked Stop hook opened an auto-arm generation"
+  pass "auto-arm: a task worker Stop never arms a watcher"
+}
+
 test_long_poll_grace_reaches_arm_wrapper() {
   local dir out status
   dir=$(make_primary_dir "$TMP_ROOT/long-poll-grace")
@@ -1818,6 +1831,7 @@ test_superseded_owner_goes_silent_and_never_double_translates
 test_need_vanished_mid_cycle_closes_quietly
 test_afk_mid_cycle_suppresses_rewake
 test_active_in_marked_secondmate_home
+test_worker_marker_never_arms
 test_long_poll_grace_reaches_arm_wrapper
 test_host_off_flag_keeps_the_arm
 test_host_absent_flag_runs_the_host
