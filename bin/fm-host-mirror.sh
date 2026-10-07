@@ -111,6 +111,7 @@ case "${1:-}" in
     exit 1
     ;;
   hook)
+    [ -z "${FM_TASK_ID:-}" ] || exit 0
     # The home gate runs before anything else is sourced or created, so a
     # home that does not run the host stays inert.
     fm_supervision_host_enabled "$CONFIG" "${2:-}" || exit 0

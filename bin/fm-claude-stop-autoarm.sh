@@ -117,6 +117,8 @@
 # owned by that short-lived process and leave supervision down once it exits.
 set -u
 
+[ -z "${FM_TASK_ID:-}" ] || exit 0
+
 usage() {
   cat <<'EOF'
 Usage: fm-claude-stop-autoarm.sh

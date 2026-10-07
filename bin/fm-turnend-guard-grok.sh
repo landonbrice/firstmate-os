@@ -8,6 +8,8 @@
 # precedence over the legacy snake-case spelling when both are present.
 set -u
 
+[ -z "${FM_TASK_ID:-}" ] || exit 0
+
 PAYLOAD=$(cat 2>/dev/null || true)
 [ -n "$PAYLOAD" ] || exit 0
 
