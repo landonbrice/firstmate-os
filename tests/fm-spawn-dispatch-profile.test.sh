@@ -1859,7 +1859,7 @@ JSON
 HERDR_HOOK_SETTINGS="\"hooks\":{\"SessionStart\":[{\"matcher\":\"^(startup|resume|clear|compact|fork)\$\",\"hooks\":[{\"type\":\"command\",\"command\":\"bash '\\''/u/.claude/hooks/herdr-agent-state.sh'\\'' session\",\"timeout\":10}]}]}"
 
 test_claude_lean_launch_merges_settings_and_links_no_mistakes_skill() {
-  local rec id out status launch kind sm excl
+  local rec id out status launch kind sm md_excludes
   for kind in cimarron-ship firstmate-scout secondmate; do
     id=profile-lean-$kind-z40
     rec=$(make_spawn_case profile-lean-$kind claude "$id")
@@ -1886,8 +1886,8 @@ test_claude_lean_launch_merges_settings_and_links_no_mistakes_skill() {
       ;;
     esac
     launch=$(cat "$LAUNCH_LOG")
-    excl=
-    [ "$kind" != firstmate-scout ] || excl=",\"claudeMdExcludes\":[\"$WT_DIR/CLAUDE.md\",\"$WT_DIR/AGENTS.md\"]"
+    md_excludes=
+    [ "$kind" != firstmate-scout ] || md_excludes=",\"claudeMdExcludes\":[\"$WT_DIR/CLAUDE.md\",\"$WT_DIR/AGENTS.md\"]"
     if [ "$kind" = secondmate ]; then
       # A secondmate's one --settings value is its state/<id>.claude-settings.json,
       # so the re-supplied keys share that file's hooks object with the busy hooks.
@@ -1898,7 +1898,7 @@ test_claude_lean_launch_merges_settings_and_links_no_mistakes_skill() {
         || fail "$kind settings file lost the lean keys or the busy hooks: $(claude_settings_json_arg "$launch")"
       assert_not_contains "$(claude_settings_json_arg "$launch")" "gh-axi" "$kind settings file carried a user hook other than the herdr one"
     else
-      assert_contains "$launch" "--settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false}$excl,\"skipDangerousModePermissionPrompt\":true,$HERDR_HOOK_SETTINGS}' --strict-mcp-config --setting-sources project,local" \
+      assert_contains "$launch" "--settings '{\"feedbackDrafts\":\"off\",\"attribution\":{\"commit\":\"\",\"pr\":\"\",\"sessionUrl\":false}$md_excludes,\"skipDangerousModePermissionPrompt\":true,$HERDR_HOOK_SETTINGS}' --strict-mcp-config --setting-sources project,local" \
         "$kind launch lost a lean flag or the merged settings: $out"
     fi
     assert_not_contains "$launch" "gh-axi" "$kind launch carried a user hook other than the herdr one"
