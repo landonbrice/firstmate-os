@@ -67,8 +67,10 @@ case "$*" in
 esac
 case "${1:-}" in
   display-message) printf 'firstmate\n'; exit 0 ;;
-  list-windows) exit 0 ;;
-  has-session|new-session|new-window|kill-window|send-keys) exit 0 ;;
+  list-windows) [ ! -f "$FM_FAKE_TMUX_STATE" ] || cat "$FM_FAKE_TMUX_STATE"; exit 0 ;;
+  new-window) printf '%s\n' "$FM_FAKE_WINDOW" > "$FM_FAKE_TMUX_STATE"; exit 0 ;;
+  kill-window) rm -f "$FM_FAKE_TMUX_STATE"; exit 0 ;;
+  has-session|new-session|send-keys) exit 0 ;;
 esac
 exit 0
 SH
@@ -86,11 +88,12 @@ make_spawn_case() {  # <name>; echoes home|proj|wt|fakebin|id
   fakebin=$(make_spawn_fakebin "$case_dir/fake")
   mkdir -p "$home/data" "$home/projects" "$home/state" "$home/config" "$home/user-home"
   printf 'claude\n' > "$home/config/crew-harness"
+  printf 'manual\n' > "$home/config/backlog-backend"
   printf '%s\n' "$$" > "$home/state/.lock"
   printf '%s off\n' "$$" > "$home/state/.trace-context-effective"
-  fm_git_worktree "$proj" "$wt" "wt-$name"
-  touch "$home/state/.last-watcher-beat"
   id=$name-t1
+  fm_git_worktree "$proj" "$wt" "fm/$id"
+  touch "$home/state/.last-watcher-beat"
   mkdir -p "$home/data/$id"
   cat > "$home/data/$id/brief.md" <<EOF
 # Task
@@ -99,18 +102,23 @@ Exercise the timeline dispatch checkpoint for $id.
 
 ## Firstmate spec
 Nothing runs; the tmux pane is fake.
+
+# Definition of done
+Delivery contract: mode=direct-PR
+Ship branch: fm/$id
 EOF
   printf '%s\n' "$home|$proj|$wt|$fakebin|$id"
 }
 
 run_spawn() {  # <home> <wt> <fakebin> <id> <proj>
-  local home=$1 wt=$2 fakebin=$3
+  local home=$1 wt=$2 fakebin=$3 id=$4
   shift 3
   env -u FM_TRACE_CONTEXT \
     FM_ROOT_OVERRIDE='' FM_HOME="$home" HOME="$home/user-home" CLAUDE_CONFIG_DIR='' \
     FM_STATE_OVERRIDE="$home/state" FM_DATA_OVERRIDE="$home/data" \
     FM_PROJECTS_OVERRIDE="$home/projects" FM_CONFIG_OVERRIDE="$home/config" \
-    FM_SPAWN_NO_GUARD=1 FM_FAKE_PANE_PATH="$wt" TMUX="fake,1,0" \
+    FM_SPAWN_NO_GUARD=1 FM_FAKE_PANE_PATH="$wt" FM_FAKE_WINDOW="fm-$id" \
+    FM_FAKE_TMUX_STATE="$home/state/fake-tmux-window" TMUX="fake,1,0" \
     PATH="$fakebin:$PATH" \
     "$SPAWN" "$@" --mode direct-PR --yolo off 2>&1
 }

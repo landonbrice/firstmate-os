@@ -5,7 +5,7 @@
 # owns the rule; signal_secondmate_echoes_only applies it to the span a watcher
 # signal classifies, and status_line_is_unread_surface keeps an absorbed echo
 # readable at the next drain. The watcher-level absorb, triage-log line, and
-# drain presentation are driven end to end in tests/fm-watch-triage.test.sh.
+# drain presentation are driven end to end in tests/fm-watch-triage-fork.test.sh.
 #
 # The replay case feeds a secondmate parent log, one append at a time, through
 # the watcher's signal decision with and without the echo rule, on an idle mate
