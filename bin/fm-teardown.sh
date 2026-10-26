@@ -3770,10 +3770,12 @@ fi
 # Every landed/discard-work refusal above has now passed (or --force skipped
 # them). Cleanup checkpoint of the durable per-task timeline record
 # (bin/fm-task-timeline.sh; schema owner bin/fm_task_timeline.py) runs first,
-# while the status log, worktree, and task metadata it reads still exist. It
-# exits 0 with a warning on any failure and never changes what this teardown
-# refuses or removes.
-if [ "$KIND" != secondmate ]; then
+# while the status log, worktree, and task metadata it reads still exist. A
+# task with no status log keeps the status-retirement path's lock-free no-op:
+# there is no task history to checkpoint, and creating data/<id> here would turn
+# the upstream no-archive contract into an empty archive. It exits 0 with a
+# warning on any failure and never changes what this teardown refuses or removes.
+if [ "$KIND" != secondmate ] && [ -f "$STATE/$ID.status" ] && [ ! -L "$STATE/$ID.status" ]; then
   FM_HOME="$FM_HOME" FM_STATE_OVERRIDE="$STATE" FM_DATA_OVERRIDE="$DATA" \
     "$SCRIPT_DIR/fm-task-timeline.sh" checkpoint cleanup "$ID" >/dev/null \
     || echo "warning: timeline cleanup checkpoint for $ID not written (exit $?)" >&2
