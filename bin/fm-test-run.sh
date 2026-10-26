@@ -1465,6 +1465,12 @@ families_for_changed_path() {
       printf '%s\n' real-herdr-gated
       printf '%s\n' backend-dispatch
       ;;
+    tests/fm-turnend-foreign-owner-repro.py)
+      printf '%s\n' "__script__:fm-turnend-foreign-owner-arm-fix.test.sh"
+      ;;
+    tests/opencode-v2-live-fixture.py)
+      printf '%s\n' "__script__:fm-opencode-primary-live-e2e.test.sh"
+      ;;
     tests/*.test.sh)
       # A single test file change selects only that script via basename family
       # resolution in the caller; emit a marker family of __script__
@@ -1864,7 +1870,7 @@ families_for_changed_path() {
 }
 
 select_changed() {
-  local base=$1 path entry fam script_name s
+  local base=$1 path mappings entry fam script_name s seen
   local -a wanted_families=()
   local -a wanted_scripts=()
 
@@ -1874,40 +1880,43 @@ select_changed() {
 
   while IFS= read -r path; do
     [ -n "$path" ] || continue
+    # Bash 3.2 retains enough process-substitution state across a large diff to
+    # become unstable. Materialize each path's small mapping before iterating.
+    mappings=$(families_for_changed_path "$path" || true)
     while IFS= read -r entry; do
       [ -n "$entry" ] || continue
       case "$entry" in
         __script__:*)
           script_name=${entry#__script__:}
-          wanted_scripts+=("$script_name")
+          seen=0
+          for s in "${wanted_scripts[@]+"${wanted_scripts[@]}"}"; do
+            [ "$s" = "$script_name" ] && { seen=1; break; }
+          done
+          [ "$seen" -eq 1 ] || wanted_scripts+=("$script_name")
           ;;
         __unmapped__:*)
           die "no changed-test mapping for source path: ${entry#__unmapped__:}"
           ;;
         *)
-          wanted_families+=("$entry")
+          seen=0
+          for fam in "${wanted_families[@]+"${wanted_families[@]}"}"; do
+            [ "$fam" = "$entry" ] && { seen=1; break; }
+          done
+          [ "$seen" -eq 1 ] || wanted_families+=("$entry")
           ;;
       esac
-    done < <(families_for_changed_path "$path")
+    done <<<"$mappings"
   done < <(git -C "$ROOT" diff --name-only "${base}...HEAD" 2>/dev/null; \
            git -C "$ROOT" diff --name-only HEAD 2>/dev/null; \
            git -C "$ROOT" ls-files --others --exclude-standard 2>/dev/null)
 
-  # Dedup families
-  local f seen_f
-  local -a unique_families=()
-  for f in "${wanted_families[@]+"${wanted_families[@]}"}"; do
-    seen_f=0
-    for u in "${unique_families[@]+"${unique_families[@]}"}"; do
-      [ "$u" = "$f" ] && { seen_f=1; break; }
-    done
-    [ "$seen_f" -eq 0 ] && unique_families+=("$f")
-  done
-
-  for f in "${unique_families[@]+"${unique_families[@]}"}"; do
+  # Keep collection bounded while a large diff fans many paths into the same
+  # small family and script sets. Bash 3.2 can SIGBUS when the duplicate arrays
+  # grow through the entire mapping pass and are expanded again afterward.
+  for fam in "${wanted_families[@]+"${wanted_families[@]}"}"; do
     while IFS= read -r s; do
       [ -n "$s" ] || continue
-      if [ "$(family_for_basename "$(basename "$s")")" = "$f" ]; then
+      if [ "$(family_for_basename "$(basename "$s")")" = "$fam" ]; then
         add_script "$s"
       fi
     done < <(all_repo_tests)

@@ -115,6 +115,8 @@ init_changed_fixture_repo() {
     fm-quota-choose.test.sh \
     fm-pi-watch-extension.test.sh \
     fm-pi-windows-shell-invocation.test.sh \
+    fm-opencode-primary-live-e2e.test.sh \
+    fm-turnend-foreign-owner-arm-fix.test.sh \
     fm-afk-return.test.sh \
     fm-bearings-snapshot.test.sh \
     fm-backend-cmux.test.sh \
@@ -126,6 +128,12 @@ init_changed_fixture_repo() {
   done
   : >"$repo/tests/lib.sh"
   : >"$repo/tests/fm-backend-herdr-eventwait.test.py"
+  : >"$repo/tests/fm-turnend-foreign-owner-repro.py"
+  : >"$repo/tests/opencode-v2-live-fixture.py"
+  printf '# fm-turnend-foreign-owner-repro.py\n' \
+    >>"$repo/tests/fm-turnend-foreign-owner-arm-fix.test.sh"
+  printf '# opencode-v2-live-fixture.py\n' \
+    >>"$repo/tests/fm-opencode-primary-live-e2e.test.sh"
   : >"$repo/bin/fm-supervisor-target-lib.sh"
   : >"$repo/bin/fm-control-lib.sh"
   : >"$repo/bin/fm-timeout-lib.sh"
@@ -333,6 +341,16 @@ test_changed_dependency_selection_and_unmapped_failure() {
   assert_contains "$listed" "tests/fm-backend.test.sh" "eventwait test selects backend coverage"
   git -C "$repo" add tests/fm-backend-herdr-eventwait.test.py
   git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -qm eventwait-change
+
+  printf '\n' >>"$repo/tests/fm-turnend-foreign-owner-repro.py"
+  printf '\n' >>"$repo/tests/opencode-v2-live-fixture.py"
+  listed=$(cd "$repo" && bin/fm-test-run.sh --list --changed --base HEAD)
+  assert_contains "$listed" "tests/fm-turnend-foreign-owner-arm-fix.test.sh" \
+    "turn-end Python fixture selects its owning test"
+  assert_contains "$listed" "tests/fm-opencode-primary-live-e2e.test.sh" \
+    "OpenCode Python fixture selects its owning test"
+  git -C "$repo" add tests/fm-turnend-foreign-owner-repro.py tests/opencode-v2-live-fixture.py
+  git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -qm python-fixture-change
 
   printf '\n' >>"$repo/bin/fm-supervisor-target-lib.sh"
   listed=$(cd "$repo" && bin/fm-test-run.sh --list --changed --base HEAD)
