@@ -2885,21 +2885,28 @@ test_terminal_last_line_alarms_once_then_stays_quiet() {
 }
 
 test_working_pr_line_under_armed_poll_is_bounded() {
-  local window="test:fm-ship" url dir state fakebin total
+  local window="test:fm-ship" url dir state fakebin total old
   url="https://github.com/o/r/pull/16"
+  old=$(( $(date +%s) - 1000 ))
   export FM_FAKE_CREW_STATE='state: stopped · source: pane · idle at its prompt'
 
   # Control: the same working line with no poll armed still floods, so the
-  # bounded case cannot pass vacuously.
+  # bounded case cannot pass vacuously. Age the status beyond the upstream
+  # unknown-alive progress window so that independent bound does not absorb the
+  # replay this fork test uses to isolate the merge-poll contract.
   # shellcheck disable=SC2046
   set -- $(make_replay_worker replay-ci-unarmed "$window" "$url" no "working [at=1790400000]: PR $url open, CI pending")
   dir=$1; state=$2; fakebin=$3
+  set_mtime "$old" "$state/ship.status"
+  printf '%s' "$(seen_sig "$state/ship.status")" > "$state/.seen-ship_status"
   total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 3)
   [ "$total" -ge 3 ] || fail "an unarmed working PR line raised $total stale wakes across 3 turn ends, so the bounded case proves nothing"
 
   # shellcheck disable=SC2046
   set -- $(make_replay_worker replay-ci-armed "$window" "$url" yes "working [at=1790400000]: PR $url open, CI pending")
   dir=$1; state=$2; fakebin=$3
+  set_mtime "$old" "$state/ship.status"
+  printf '%s' "$(seen_sig "$state/ship.status")" > "$state/.seen-ship_status"
   total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 4)
   [ "$total" -le 1 ] || fail "a working PR line under an armed poll raised $total stale wakes across 4 turn ends, want at most 1"
 
@@ -2907,6 +2914,8 @@ test_working_pr_line_under_armed_poll_is_bounded() {
   # shellcheck disable=SC2046
   set -- $(make_replay_worker replay-ci-other "$window" "$url" yes "working [at=1790400000]: PR https://github.com/o/r/pull/99 open, CI pending")
   dir=$1; state=$2; fakebin=$3
+  set_mtime "$old" "$state/ship.status"
+  printf '%s' "$(seen_sig "$state/ship.status")" > "$state/.seen-ship_status"
   total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 3)
   [ "$total" -ge 3 ] || fail "a working line naming another PR was bounded by this task's poll ($total wakes)"
   unset FM_FAKE_CREW_STATE
