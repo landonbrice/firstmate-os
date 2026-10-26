@@ -2925,9 +2925,13 @@ test_working_pr_line_under_armed_poll_is_bounded() {
 test_wedged_worker_without_terminal_line_still_alarms() {
   local window="test:fm-ship" dir state fakebin total
   export FM_FAKE_CREW_STATE='state: stopped · source: pane · idle at its prompt'
+  # A wedged worker has written nothing recently: age the status beyond the
+  # upstream unknown-alive progress window, which otherwise bounds this replay.
   # shellcheck disable=SC2046
   set -- $(make_replay_worker replay-wedged "$window" "https://github.com/o/r/pull/5" yes "working [at=1790400000]: implementing the change")
   dir=$1; state=$2; fakebin=$3
+  set_mtime "$(( $(date +%s) - 1000 ))" "$state/ship.status"
+  printf '%s' "$(seen_sig "$state/ship.status")" > "$state/.seen-ship_status"
   total=$(replay_turn_ends "$dir" "$state" "$fakebin" "$window" 3)
   [ "$total" -ge 3 ] || fail "an idle worker with no terminal line raised only $total stale wakes across 3 turn ends"
   unset FM_FAKE_CREW_STATE
