@@ -1665,6 +1665,8 @@ families_for_changed_path() {
     .opencode/plugins/fm-primary-turnend-guard.js)
       printf '%s\n' __script__:fm-turnend-guard.test.sh
       ;;
+    .opencode/plugins/fm-primary-cd-check.js|\
+    .opencode/plugins/fm-primary-pretool-check.js|\
     .opencode/plugins/fm-primary-watch-arm.js|.pi/extensions/fm-primary-pi-watch.ts)
       printf '%s\n' __script__:fm-pi-watch-extension.test.sh
       ;;
