@@ -7,7 +7,7 @@
 # owns the rule; bin/fm-watch.sh applies it only when
 # signal_secondmate_echoes_only and signal_self_maintenance_done_only did not
 # already absorb the batch. The watcher-level absorb and triage-log line are
-# driven end to end in tests/fm-watch-triage.test.sh
+# driven end to end in tests/fm-watch-triage-fork.test.sh
 # (test_turn_ended_repeated_status_absorbed and its never-absorb siblings).
 set -u
 
