@@ -735,6 +735,21 @@ test_stale_churn_without_a_captain_call_still_alarms() {
     state="$dir/state"; out="$dir/watch.out"; capture="$dir/pane.txt"
     round=1
     while [ "$round" -le 2 ]; do
+      if [ "$name" = unheld-delivery ] && [ "$round" -eq 2 ]; then
+        # A done: line is terminal: its first sight alarmed once and pane churn
+        # alone never re-fires it (terminal_stale_bound).
+        printf '%s\n' "idle, elapsed ${round}s" > "$capture"
+        hold_watch_launch "$dir" "$out" "$capture"
+        wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 || true
+        wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 || true
+        wait_poll_cycle "$state" "$HOLD_WATCH_PID" 300 || true
+        reap "$HOLD_WATCH_PID"
+        wakes=$(hold_stale_wakes "$state")
+        [ "$wakes" -eq 0 ] \
+          || fail "[$name] a done: line re-alarmed on pane churn ($wakes wakes)"
+        round=$((round + 1))
+        continue
+      fi
       hold_watch_surface "$dir" "$out" "$capture" "idle, elapsed ${round}s" \
         || fail "[$name] an unheld stale window stopped alarming on round $round"
       wakes=$(hold_stale_wakes "$state")
