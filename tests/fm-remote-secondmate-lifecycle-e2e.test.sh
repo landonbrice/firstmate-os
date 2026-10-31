@@ -992,11 +992,23 @@ FM_FAKE_SSH_MODE=inherit-block remote_env "$ROOT/bin/fm-spawn.sh" ios --secondma
 spawn_concurrent=$!
 spawn_inherit_wait=0
 # Earlier inherited files traverse the worker before captain-shared.md, so give
-# a loaded portable runner 30 seconds to reach this deliberately blocked write.
+# a loaded portable runner 60 seconds to reach this deliberately blocked write.
+# Measured (2026-10-31 upstream sync, two samples each, same machine, back to
+# back): fork's pre-sync origin/main ~24s (23.9s, 23.8s), unmodified upstream/
+# main ~49s (50.6s, 48.7s), the merged branch ~48s (48.4s) - the merged branch
+# tracks upstream, not origin, so this is upstream's own behavior, not a sync
+# artifact. Root cause: upstream's bin/fm-wake-lib.sh added fm_lock_prepare_owner
+# -> fm_pid_start_time, called on every lock acquisition; on Darwin (no /proc)
+# that falls back to a `ps` subprocess per call. This path acquires many locks
+# across the remote job queue and secondmate registry before reaching the
+# blocked write, so the added `ps` forks compound into real seconds. Every
+# file in the fm-config-push.sh -> fm-on.sh -> fm-remote-job-lib.sh call chain
+# is byte-identical to origin/main; only the newly-pulled-in fm-wake-lib.sh
+# accounts for the difference.
 while [ ! -f "$TMP_ROOT/inherit.entered" ]; do
   kill -0 "$spawn_concurrent" 2>/dev/null || fail "remote spawn exited before its blocked inheritance write"
   spawn_inherit_wait=$((spawn_inherit_wait + 1))
-  [ "$spawn_inherit_wait" -le 1500 ] || fail "remote spawn never reached its blocked inheritance write"
+  [ "$spawn_inherit_wait" -le 3000 ] || fail "remote spawn never reached its blocked inheritance write"
   sleep 0.02
 done
 cat > "$PARENT/data/captain-shared.md" <<'EOF'
@@ -1107,7 +1119,8 @@ while [ ! -f "$TMP_ROOT/inherit.entered" ]; do
   inherit_wait=$((inherit_wait + 1))
   # Match the earlier spawn/inheritance wait: a loaded portable runner can
   # spend several seconds in the remote entrypoint before reaching this write.
-  [ "$inherit_wait" -le 1500 ] || fail "first inheritance transaction never reached its blocked write"
+  # See the 2026-10-31 upstream-sync comment above spawn_inherit_wait.
+  [ "$inherit_wait" -le 3000 ] || fail "first inheritance transaction never reached its blocked write"
   sleep 0.02
 done
 cat > "$PARENT/data/captain-shared.md" <<'EOF'
@@ -1585,11 +1598,12 @@ FM_FAKE_SSH_MODE=launch-block remote_env "$ROOT/bin/fm-spawn.sh" ios --secondmat
 spawn_retirement_pid=$!
 launch_wait=0
 # The respawn performs readiness and inheritance jobs before launch, so allow
-# the same 30-second loaded-runner bound as the earlier blocked worker path.
+# the same 60-second loaded-runner bound as the earlier blocked worker path
+# (see the 2026-10-31 upstream-sync comment above spawn_inherit_wait).
 while [ ! -f "$TMP_ROOT/launch.entered" ]; do
   kill -0 "$spawn_retirement_pid" 2>/dev/null || fail "remote respawn exited before its blocked launch"
   launch_wait=$((launch_wait + 1))
-  [ "$launch_wait" -le 1500 ] || fail "remote respawn never reached its blocked launch"
+  [ "$launch_wait" -le 3000 ] || fail "remote respawn never reached its blocked launch"
   sleep 0.02
 done
 # Both opt-in archives must cover the parent-side records on the real remote path.
