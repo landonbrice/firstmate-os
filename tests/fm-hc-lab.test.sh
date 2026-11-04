@@ -79,7 +79,7 @@ refuse 'refusing to adopt or overwrite' bash "$LAB" provision fm-hclab-good
 [ "$(cat "$FM_HC_LAB_DIR/fm-hclab-good/sentinel")" = 'do not overwrite' ] || fail 'existing session overwritten'
 
 for failure in find metadata roots baseline; do
-  refuse 'refusing unverified teardown' env FAIL_READ=$failure bash "$LAB" teardown fm-hclab-good
+  refuse 'refusing unverified teardown' env FAIL_READ="$failure" bash "$LAB" teardown fm-hclab-good
   [ -d "$FM_HC_LAB_DIR/fm-hclab-good" ] || fail 'failed verification removed evidence'
 done
 refuse 'could not record the fleet-state tripwire' env FAIL_READ=find bash "$LAB" provision fm-hclab-incomplete

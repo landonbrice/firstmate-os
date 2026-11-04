@@ -1471,7 +1471,7 @@ test_server_ensure_starts_a_firstmate_owned_server() {
   dir="$TMP_ROOT/server-owned-default"; mkdir -p "$dir/session"
   out=$(run_owned_server_ensure "$dir")
   status=$?
-  expect_code 0 $status "server_ensure should start a stopped server the session directory does not mark as externally owned"
+  expect_code 0 "$status" "server_ensure should start a stopped server the session directory does not mark as externally owned"
   [ "$(cat "$dir/starts" 2>/dev/null)" = started ] || fail "server_ensure did not start exactly one Firstmate-owned server: $out"
   pass "fm_backend_herdr_server_ensure: still starts a stopped server when no ownership marker is present"
 }
@@ -1498,7 +1498,7 @@ test_server_ensure_uses_a_running_externally_managed_server() {
   : > "$dir/running"
   out=$(run_owned_server_ensure "$dir")
   status=$?
-  expect_code 0 $status "server_ensure should use a running externally managed server: $out"
+  expect_code 0 "$status" "server_ensure should use a running externally managed server: $out"
   [ ! -e "$dir/sleep-count" ] || fail "server_ensure waited on a running externally managed server with no replacement in progress"
   [ ! -e "$dir/starts" ] || fail "server_ensure started a server that an external owner manages"
   pass "fm_backend_herdr_server_ensure: a running externally managed server is used at once"
@@ -1510,7 +1510,7 @@ test_server_ensure_waits_out_a_server_replacement() {
   : > "$dir/session/firstmate-server-replacing"
   out=$(run_owned_server_ensure "$dir" FM_HERDR_FLIP_AFTER=3 FM_HERDR_FLIP=up)
   status=$?
-  expect_code 0 $status "server_ensure should proceed once the replaced server reports running: $out"
+  expect_code 0 "$status" "server_ensure should proceed once the replaced server reports running: $out"
   [ ! -e "$dir/starts" ] || fail "server_ensure started a server during a replacement"
   [ "$(cat "$dir/sleep-count")" = 3 ] || fail "server_ensure should have waited until the replacement ended on the third wait, got $(cat "$dir/sleep-count")"
   pass "fm_backend_herdr_server_ensure: a replacement marker makes it wait without starting, then proceed once the server is running"
@@ -1523,7 +1523,7 @@ test_server_ensure_holds_callers_off_a_running_server_during_a_replacement() {
   : > "$dir/running"
   out=$(run_owned_server_ensure "$dir" FM_HERDR_FLIP_AFTER=4 FM_HERDR_FLIP=clear)
   status=$?
-  expect_code 0 $status "server_ensure should proceed once the replacement marker clears: $out"
+  expect_code 0 "$status" "server_ensure should proceed once the replacement marker clears: $out"
   [ ! -e "$dir/starts" ] || fail "server_ensure started a server during a replacement"
   [ "$(cat "$dir/sleep-count" 2>/dev/null)" = 4 ] || fail "server_ensure released its caller to a running server while the replacement marker remained: $(cat "$dir/sleep-count" 2>/dev/null) waits"
   pass "fm_backend_herdr_server_ensure: a running server is not used while a replacement marker remains"
@@ -1535,7 +1535,7 @@ test_server_ensure_resumes_ownership_after_a_replacement_clears() {
   : > "$dir/session/firstmate-server-replacing"
   out=$(run_owned_server_ensure "$dir" FM_HERDR_FLIP_AFTER=2 FM_HERDR_FLIP=clear)
   status=$?
-  expect_code 0 $status "server_ensure should start its own server once a replacement ends with the server down: $out"
+  expect_code 0 "$status" "server_ensure should start its own server once a replacement ends with the server down: $out"
   [ "$(cat "$dir/starts" 2>/dev/null)" = started ] || fail "server_ensure did not start its own server after the replacement marker cleared"
   pass "fm_backend_herdr_server_ensure: with no owner marker, a cleared replacement hands back to the Firstmate-owned start"
 }
