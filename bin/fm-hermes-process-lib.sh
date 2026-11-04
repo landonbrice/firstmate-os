@@ -11,13 +11,14 @@ fm_hermes_process_matches() {  # <args> [pid]
   else
     read -r -a words <<< "$args"
   fi
+  [ "${#words[@]}" -gt 0 ] || return 1
   for word in "${words[@]}"; do
     if [ "$first" = 1 ]; then
       first=0
       case "${word##*/}" in
         hermes) return 0 ;;
         node|node-*|node[0-9]*|MainThread) interpreter=node ;;
-        python|python[0-9]*) interpreter=python ;;
+        python|python[0-9]*|Python|Python[0-9]*) interpreter=python ;;
         *) return 1 ;;
       esac
       continue
