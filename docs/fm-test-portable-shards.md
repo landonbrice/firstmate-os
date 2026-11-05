@@ -26,10 +26,14 @@ The native-Windows-only `tests/fm-pi-windows-shell-invocation.test.sh` retains i
 The 2026-10-07 polytoken adapter tests carry provisional local measurements instead - 21090 ms for `tests/fm-polytoken-harness.test.sh` and the 103 ms live-guard skip for `tests/fm-polytoken-signals-live-e2e.test.sh`, both measured on the adapter-verification macOS host - until the next CI refresh replaces them with Ubuntu measurements, because they postdate the 2026-09-30 baseline.
 The 2026-10-23 `tests/fm-approval-failover.test.sh` serial hint is a provisional local measurement of 5410 ms, the slowest of five local `bin/fm-test-run.sh` samples (4991-5410 ms), until the next CI refresh replaces it with an Ubuntu timing-artifact maximum.
 The 2026-10-23 Kimi folder-prompt live guard, `tests/fm-kimi-trust-prompt-live-e2e.test.sh`, carries a provisional 60 ms skip measured on the Linux host that recorded its captures, until the next CI refresh replaces it with an Ubuntu measurement.
+The 2026-11-03 `tests/fm-herdr-projected-cd-live-e2e.test.sh` serial hint is provisionally 28000 ms, above a successful 27692 ms local runner sample exercising Herdr 0.9.5 on macOS arm64, until the next CI refresh replaces it with an Ubuntu timing-artifact maximum.
+The 2026-10-27 `tests/fm-claude-account-quota.test.sh` serial hint is a provisional local measurement of 2492 ms, the slowest of five local `bin/fm-test-run.sh` samples (1930-2492 ms) on a Linux host, until the next CI refresh replaces it with an Ubuntu timing-artifact maximum.
 The 2026-10-26 `tests/fm-test-tap-verify.test.sh` serial hint is a provisional local measurement of 1000 ms, above a 238 ms `bin/fm-test-run.sh` sample on this Linux host, until the next CI refresh replaces it with an Ubuntu timing-artifact maximum.
 The 2026-10-27 read-repetition suites carry provisional Linux x86_64 local runner maxima: 602 ms for `tests/fm-read-repetition.test.sh` (six successful samples, 528-602 ms) and 1110 ms for `tests/fm-read-repetition-live.test.sh` (five successful samples, 949-1110 ms).
 The live samples exercised installed Pi 1.4.0 RPC without capability skips; they are not CI timing evidence or timings for unavailable harnesses.
 Both suites retain serial placement and full coverage; replace these provisional hints with Ubuntu timing-artifact maxima at the next CI refresh.
+The 2026-10-29 `tests/fm-live-lab-isolation.test.sh` serial hint is a provisional local measurement of 6459 ms, the slowest of six `bin/fm-test-run.sh` samples (4308-6459 ms) taken inside a private `unshare -Urm` /tmp on this Linux host, until the next CI refresh replaces it with an Ubuntu timing-artifact maximum.
+The 2026-10-27 `tests/fm-codex-stop-park.test.sh` serial hint is a provisional local measurement of 35000 ms, above the slowest of the `bin/fm-test-run.sh` samples (20170-34700 ms) on a macOS arm64 host, until the next CI refresh replaces it with an Ubuntu timing-artifact maximum.
 The 2026-10-28 Antigravity primary tests carry provisional serial hints - 45000 ms for `tests/fm-agy-primary.test.sh` and the 75 ms live-guard skip for `tests/fm-agy-primary-live-e2e.test.sh` - until the next CI refresh replaces them with Ubuntu timing-artifact maxima.
 This fork's `tests/fm-watch-triage-fork.test.sh` carries a provisional 307000 ms, the summed pass-line intervals of its cases in fork CI run [40382354872](https://github.com/landonbrice/firstmate-os/actions/runs/40382354872) before they moved out of `tests/fm-watch-triage.test.sh`, until the next CI refresh replaces it with an Ubuntu timing-artifact maximum.
 Eleven fork-only serial scripts introduced by the 2026-10-31 upstream sync carry provisional hints from the slowest successful `duration_ms` in fork CI run [41208105169](https://github.com/landonbrice/firstmate-os/actions/runs/41208105169)'s portable serial/parallel timing artifacts - `tests/fm-bridge-console.test.sh` (196 ms), `tests/fm-bridge-snapshot.test.sh` (384 ms), `tests/fm-classify-ack-echo.test.sh` (45817 ms), `tests/fm-classify-turnend-quiet.test.sh` (281 ms), `tests/fm-context-check-primary-live-e2e.test.sh` (43 ms), `tests/fm-context-check.test.sh` (6121 ms), `tests/fm-mate-view.test.sh` (2200 ms), `tests/fm-quota-report.test.sh` (936 ms), `tests/fm-spend-report.test.sh` (219 ms), `tests/fm-task-timeline.test.sh` (11002 ms), and `tests/fm-upstream-sync.test.sh` (1750 ms) - until the next CI refresh replaces them with additional samples.
@@ -55,6 +59,12 @@ The CI cap follows the three-tier timeout policy in [Timeouts](#timeouts) below.
 Its scheduling regressions also check stored parallel lane order and preserve serial-weight scheduling for other selections.
 These checks do not detect a script outgrowing an existing hint or establish measured job headroom.
 Refresh `portable_parallel_weight_hints` with the slowest completed `duration_ms` per script from several green CI runs' `fm-test-timing-portable-parallel-*` artifacts whenever the parallel set gains scripts or a member grows materially.
+
+The remote-secondmate lifecycle hint is 1005249 ms, its completed, passing `FM_TEST_END` sample from Ubuntu run [41289019354](https://github.com/kunchenguid/firstmate/actions/runs/41289019354).
+Rex lifecycle coverage outgrew the previous 345655 ms hint; serial shard 9 then reached the 30-minute job cap while running later tests.
+After the 2026-11-04 fork sync retained the fork-only suites alongside the incoming upstream inventory, `/bin/bash bin/fm-test-run.sh --check-coverage` reported `serial=297 serial_shards=12 serial_unhinted=42 serial_max_ms=1145723 serial_budget_ms=1200000`.
+Twelve serial shards therefore keep that merged inventory within the unchanged modeled budget and timeout policy.
+The remote-secondmate value is a completed-script measurement from a partial run, not a successful whole-shard timing or a guarantee of future headroom.
 
 ## Portable serial remainder
 
@@ -130,7 +140,7 @@ No fast mode, path skips, or paid runner provisioning is part of this layout.
 
 The longer-term performance objective remains a complete green run under fifteen minutes including start delay, but the three watch-triage members still sum to about 26 minutes of CI test time.
 The immediate packing target is the runner's modeled script budget, not a claim that more shards alone can make an indivisible script faster.
-The layout uses fifteen long-lived Linux jobs (ten serial, two parallel, Herdr, two lint), plus short checks and macOS; insufficient shared account capacity can erase the packing gain.
+The layout uses seventeen long-lived Linux jobs (twelve serial, two parallel, Herdr, two lint), plus short checks and macOS; insufficient shared account capacity can erase the packing gain.
 Compare complete before/after runs, preserve cancelled and partial-run evidence, and measure a representative normal-run sample before claiming a P95 improvement.
 The workflow retains per-PR supersession and keeps only the newest of close main pushes' runs, without changing the compliance workflow's event semantics.
 

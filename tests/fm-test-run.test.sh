@@ -113,6 +113,7 @@ init_changed_fixture_repo() {
     fm-pr-merge.test.sh \
     fm-procevent-quota.test.sh \
     fm-quota-choose.test.sh \
+    fm-pi-worker-stream-live-e2e.test.sh \
     fm-pi-watch-extension.test.sh \
     fm-pi-windows-shell-invocation.test.sh \
     fm-opencode-primary-live-e2e.test.sh \
@@ -130,6 +131,7 @@ init_changed_fixture_repo() {
   : >"$repo/tests/fm-backend-herdr-eventwait.test.py"
   : >"$repo/tests/fm-turnend-foreign-owner-repro.py"
   : >"$repo/tests/opencode-v2-live-fixture.py"
+  : >"$repo/tests/fm-pi-worker-stream-live.mjs"
   printf '# fm-turnend-foreign-owner-repro.py\n' \
     >>"$repo/tests/fm-turnend-foreign-owner-arm-fix.test.sh"
   printf '# opencode-v2-live-fixture.py\n' \
@@ -351,6 +353,13 @@ test_changed_dependency_selection_and_unmapped_failure() {
     "OpenCode Python fixture selects its owning test"
   git -C "$repo" add tests/fm-turnend-foreign-owner-repro.py tests/opencode-v2-live-fixture.py
   git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -qm python-fixture-change
+
+  printf '\n' >>"$repo/tests/fm-pi-worker-stream-live.mjs"
+  listed=$(cd "$repo" && bin/fm-test-run.sh --list --changed --base HEAD)
+  assert_contains "$listed" "tests/fm-pi-worker-stream-live-e2e.test.sh" \
+    "Pi worker-stream helper selects its owning live test"
+  git -C "$repo" add tests/fm-pi-worker-stream-live.mjs
+  git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -qm pi-worker-stream-helper-change
 
   printf '\n' >>"$repo/bin/fm-supervisor-target-lib.sh"
   listed=$(cd "$repo" && bin/fm-test-run.sh --list --changed --base HEAD)
