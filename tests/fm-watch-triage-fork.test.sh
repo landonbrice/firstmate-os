@@ -259,7 +259,7 @@ test_silent_idle_backstop_surfaces_a_terminal_status_gap() {
   # Non-terminal status: the worker never wrote a captain-relevant verb.
   printf 'working: implementing\n' > "$state/silent.status"
   sig=$(seen_sig "$state/silent.status"); printf '%s' "$sig" > "$state/.seen-silent_status"
-  key=$(printf '%s' "$window" | tr ':/.' '___')
+  key=$(watch_window_key "$window")
   export FM_FAKE_CREW_STATE='state: unknown · source: none · no current-state source available'
 
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
@@ -286,7 +286,7 @@ test_silent_idle_backstop_suppressed_by_declared_pause() {
   printf 'window=%s\nkind=ship\n' "$window" > "$state/silentpaused.meta"
   printf 'paused: waiting on an upstream release\n' > "$state/silentpaused.status"
   sig=$(seen_sig "$state/silentpaused.status"); printf '%s' "$sig" > "$state/.seen-silentpaused_status"
-  key=$(printf '%s' "$window" | tr ':/.' '___')
+  key=$(watch_window_key "$window")
   export FM_FAKE_CREW_STATE='state: unknown · source: none · no current-state source available'
 
   PATH="$fakebin:$PATH" FM_FAKE_TMUX_WINDOW="$window" FM_FAKE_TMUX_CAPTURE="$capture_file" \
@@ -362,7 +362,7 @@ test_delivered_pr_stale_flood_is_bounded_by_the_armed_merge_poll() {
   local url window dir state fakebin key total round wakes
   url="https://github.com/o/r/pull/12"
   window="test:fm-ship"
-  key=$(printf '%s' "$window" | tr ':/.' '___')
+  key=$(watch_window_key "$window")
   export FM_FAKE_CREW_STATE='state: stopped · source: pane · idle at its prompt'
 
   # No merge poll armed: the first sight still alarms, exactly once.
@@ -442,7 +442,7 @@ replay_turn_ends() {  # <dir> <state> <fakebin> <window> <n>
 # pending` then `done: PR <url>` while its PR sat under review.
 test_terminal_last_line_alarms_once_then_stays_quiet() {
   local window="test:fm-ship" key url17 url16 dir state fakebin total
-  key=$(printf '%s' "$window" | tr ':/.' '___')
+  key=$(watch_window_key "$window")
   url17="https://github.com/o/r/pull/17"
   url16="https://github.com/o/r/pull/16"
   export FM_FAKE_CREW_STATE='state: stopped · source: pane · idle at its prompt'
