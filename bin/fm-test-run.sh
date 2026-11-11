@@ -1534,6 +1534,9 @@ families_for_changed_path() {
     tests/fm-pi-worker-stream-live.mjs)
       printf '%s\n' "__script__:fm-pi-worker-stream-live-e2e.test.sh"
       ;;
+    tests/assets/board-render-harness.mjs)
+      printf '%s\n' "__script__:fm-bearings-board-render.test.sh"
+      ;;
     tests/*.test.sh)
       # A single test file change selects only that script via basename family
       # resolution in the caller; emit a marker family of __script__

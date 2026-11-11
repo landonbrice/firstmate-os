@@ -119,6 +119,7 @@ init_changed_fixture_repo() {
     fm-opencode-primary-live-e2e.test.sh \
     fm-turnend-foreign-owner-arm-fix.test.sh \
     fm-afk-return.test.sh \
+    fm-bearings-board-render.test.sh \
     fm-bearings-snapshot.test.sh \
     fm-backend-cmux.test.sh \
     fm-backend-zellij.test.sh \
@@ -132,6 +133,8 @@ init_changed_fixture_repo() {
   : >"$repo/tests/fm-turnend-foreign-owner-repro.py"
   : >"$repo/tests/opencode-v2-live-fixture.py"
   : >"$repo/tests/fm-pi-worker-stream-live.mjs"
+  mkdir -p "$repo/tests/assets"
+  : >"$repo/tests/assets/board-render-harness.mjs"
   printf '# fm-turnend-foreign-owner-repro.py\n' \
     >>"$repo/tests/fm-turnend-foreign-owner-arm-fix.test.sh"
   printf '# opencode-v2-live-fixture.py\n' \
@@ -387,6 +390,13 @@ test_changed_dependency_selection_and_unmapped_failure() {
     "Pi worker-stream helper selects its owning live test"
   git -C "$repo" add tests/fm-pi-worker-stream-live.mjs
   git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -qm pi-worker-stream-helper-change
+
+  printf '\n' >>"$repo/tests/assets/board-render-harness.mjs"
+  listed=$(cd "$repo" && bin/fm-test-run.sh --list --changed --base HEAD)
+  assert_contains "$listed" "tests/fm-bearings-board-render.test.sh" \
+    "bearings board render harness selects its owning test"
+  git -C "$repo" add tests/assets/board-render-harness.mjs
+  git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -qm board-render-harness-change
 
   printf '\n' >>"$repo/bin/fm-supervisor-target-lib.sh"
   listed=$(cd "$repo" && bin/fm-test-run.sh --list --changed --base HEAD)
