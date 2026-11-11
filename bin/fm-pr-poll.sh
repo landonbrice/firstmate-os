@@ -92,7 +92,7 @@ case "$provider" in
     esac
     [ "$url" = "https://$host/$owner/$repo/pull/$number" ] || exit 0
     if [ "$degraded_enabled" != 1 ]; then
-      result=$(GH_HOST=$host gh pr view "$url" --json state --jq '.state' 2>/dev/null) || exit $unknown
+      result=$(GH_HOST=$host gh pr view "$url" --json state --jq '.state' 2>/dev/null) || exit "$unknown"
       [ "$result" = MERGED ] && printf '%s\n' merged
       exit 0
     fi
@@ -133,21 +133,21 @@ case "$provider" in
           + (if $u == "" then "" else " url=" + ($u | gsub("[\\n\\r\\t]"; " ")) end)
       else
         ""
-      end' 2>/dev/null) || exit $unknown
+      end' 2>/dev/null) || exit "$unknown"
     case $result in
       merged)
         printf '%s\n' merged
         ;;
       'degraded head='*)
         case $result in
-          *$'\n'*) exit $unknown ;;
+          *$'\n'*) exit "$unknown" ;;
         esac
         head=${result#'degraded head='}
         head=${head%% *}
         case $head in
-          ''|*[!0-9a-f]*) exit $unknown ;;
+          ''|*[!0-9a-f]*) exit "$unknown" ;;
         esac
-        [ "${#head}" -eq 40 ] || exit $unknown
+        [ "${#head}" -eq 40 ] || exit "$unknown"
         [ "${#result}" -le 2000 ] || exit 0
         printf '%s\n' "$result"
         ;;
@@ -182,8 +182,8 @@ case "$provider" in
     [ "$segments" -ge 2 ] || exit 0
     [ "$url" = "https://$host/$path/-/merge_requests/$number" ] || exit 0
     if [ "$degraded_enabled" != 1 ]; then
-      raw=$(GITLAB_HOST=$host glab mr view "$number" -R "https://$host/$path" 2>/dev/null) || exit $unknown
-      state=$(printf '%s\n' "$raw" | sed -n 's/^state:[[:space:]]*//p' | head -1) || exit $unknown
+      raw=$(GITLAB_HOST=$host glab mr view "$number" -R "https://$host/$path" 2>/dev/null) || exit "$unknown"
+      state=$(printf '%s\n' "$raw" | sed -n 's/^state:[[:space:]]*//p' | head -1) || exit "$unknown"
       [ "$state" = merged ] && printf '%s\n' merged
       exit 0
     fi
@@ -288,13 +288,13 @@ case "$provider" in
         done
     }
     if ! command -v jq >/dev/null 2>&1; then
-      raw=$(GITLAB_HOST=$host glab mr view "$number" -R "https://$host/$path" 2>/dev/null) || exit $unknown
-      state=$(printf '%s\n' "$raw" | sed -n 's/^state:[[:space:]]*//p' | head -1) || exit $unknown
+      raw=$(GITLAB_HOST=$host glab mr view "$number" -R "https://$host/$path" 2>/dev/null) || exit "$unknown"
+      state=$(printf '%s\n' "$raw" | sed -n 's/^state:[[:space:]]*//p' | head -1) || exit "$unknown"
       [ "$state" = merged ] && printf '%s\n' merged
       exit 0
     fi
-    raw=$(GITLAB_HOST=$host glab mr view "$number" -R "https://$host/$path" -F json 2>/dev/null) || exit $unknown
-    [ -n "$raw" ] || exit $unknown
+    raw=$(GITLAB_HOST=$host glab mr view "$number" -R "https://$host/$path" -F json 2>/dev/null) || exit "$unknown"
+    [ -n "$raw" ] || exit "$unknown"
     result=$(printf '%s' "$raw" | jq -r '
       if type == "object"
          and (.state | type) == "string"
@@ -317,7 +317,7 @@ case "$provider" in
         end
       else
         error("invalid merge request record")
-      end' 2>/dev/null) || exit $unknown
+      end' 2>/dev/null) || exit "$unknown"
     case $result in
       open\ *)
         reason=${result#open }
@@ -332,7 +332,7 @@ case "$provider" in
         [ "${#pipeline}" -le 18 ] || pipeline=
         # stdout is the car record and stderr the CLI's diagnostics: a notice on
         # a good read must not spoil the record, nor noise on a 404 hide it.
-        errfile=$(mktemp "${TMPDIR:-/tmp}/fm-pr-poll.XXXXXX") || exit $unknown
+        errfile=$(mktemp "${TMPDIR:-/tmp}/fm-pr-poll.XXXXXX") || exit "$unknown"
         car=$(GITLAB_HOST=$host glab api "projects/$enc/merge_trains/merge_requests/$number" 2>"$errfile")
         car_rc=$?
         car_err=$(cat "$errfile" 2>/dev/null)
@@ -476,8 +476,8 @@ case "$provider" in
     # gerrit.canonicalWebUrl and omits it when that setting is unset, so an
     # equality test would leave a correctly armed watch silent forever on such
     # a server, and this poll has no channel to report that it never matched.
-    json=$(gerrit-axi show "$number" --host "$host" --json 2>/dev/null) || exit $unknown
-    [ -n "$json" ] || exit $unknown
+    json=$(gerrit-axi show "$number" --host "$host" --json 2>/dev/null) || exit "$unknown"
+    [ -n "$json" ] || exit "$unknown"
     status=$(printf '%s' "$json" | jq -r --argjson change "$number" '
       if type == "object" and .ok == true and (.changes | type) == "array" then
         [.changes[] | select((.change | type) == "number" and .change == $change)] as $match
@@ -488,7 +488,7 @@ case "$provider" in
           end
       else
         error("invalid gerrit record")
-      end' 2>/dev/null) || exit $unknown
+      end' 2>/dev/null) || exit "$unknown"
     [ "$status" = MERGED ] && printf '%s\n' merged
     ;;
   forgejo)
@@ -536,8 +536,8 @@ case "$provider" in
         else
           error("login list is not an array")
         end' 2>/dev/null
-    ) || exit $unknown
-    [ -n "$login" ] || exit $unknown
+    ) || exit "$unknown"
+    [ -n "$login" ] || exit "$unknown"
     # tea's single-PR view ignores field selection, so the one pull request
     # is read by number from the REST record through "tea api", which keeps
     # the credential inside tea. "tea api" exits 0 on an HTTP error with the
@@ -548,7 +548,7 @@ case "$provider" in
         if type == "object" and (.merged | type) == "boolean"
         then .merged | tostring
         else error("invalid pull request record")
-        end' 2>/dev/null) || exit $unknown
+        end' 2>/dev/null) || exit "$unknown"
     [ "$merged" = true ] && printf '%s\n' merged
     ;;
   *) exit 0 ;;

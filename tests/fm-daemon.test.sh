@@ -1571,6 +1571,7 @@ test_housekeeping_overdue_queue_failure_resume_discards() {
   original_enqueue=$(declare -f escalate_add)
   for event in working paused; do
     for route in housekeeping signal stale; do
+      # shellcheck disable=SC2031 # The loop route remains in the parent; fixture changes are subshell-local.
       (
         dir=$(make_supercase "overdue-resume-$event-$route")
         arm_pause_ceiling "$dir"
